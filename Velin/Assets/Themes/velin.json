@@ -1,0 +1,17 @@
+{
+  "Name": "Velin (medieval)",
+  "BgDark": "#3B2714",
+  "BgLight": "#6B4423",
+  "ControlBg": "#5A3D22",
+  "ControlText": "#F0E1C0",
+  "InputBg": "#E8D9B5",
+  "InputText": "#3D2914",
+  "Accent": "#B98A4F",
+  "ButtonTextOnAccent": "#2A1A0D",
+  "TitleBarBg": "#2A1A0D",
+  "TitleBarText": "#F0E1C0",
+  "ProgressBarColor": "#C8A165",
+  "ButtonGradientTop": "#7D5128",
+  "ButtonGradientBottom": "#5A3D22",
+  "UseMedievalFont": true
+}

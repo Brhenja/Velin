@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Velin</AssemblyName>
+    <RootNamespace>Velin</RootNamespace>
+    <Version>1.0.0</Version>
+    <Authors>Brhenja</Authors>
+    <Product>Velin</Product>
+    <Description>Launcher de Minecraft Java liviano para Windows</Description>
+    <RepositoryUrl>https://github.com/Brhenja/Velin</RepositoryUrl>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ApplicationIcon>Assets\velin.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Arranque más rápido: compila a código nativo de antemano en vez de JIT-ear todo al abrir. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Necesaria para poder reproducir música de fondo y sonido de click AL MISMO TIEMPO:
+         System.Media.SoundPlayer usa la API PlaySound de Windows, que sólo deja sonar
+         una cosa a la vez por proceso (por eso el click cortaba la música). -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <!-- Para que la Vault pueda extraer .zip/.7z/.rar sin depender de que el usuario
+         tenga 7-Zip o WinRAR instalados. -->
+    <PackageReference Include="SharpCompress" Version="0.50.4" />
+    <!-- Cifra los tokens de las cuentas de Microsoft con DPAPI (sólo tu usuario de Windows puede leerlos). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Assets\velin.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\MedievalSharp.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\Cinzel.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\velin_theme.wav" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\velin_bgmusic.wav" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\OFL-MedievalSharp.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\OFL-Cinzel.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\click.wav" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\Themes\velin.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\Themes\flash.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\flash_mascot.gif" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

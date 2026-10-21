@@ -1,0 +1,17 @@
+{
+  "Name": "Flash (arcade)",
+  "BgDark": "#1B2A4A",
+  "BgLight": "#2E4A82",
+  "ControlBg": "#24355C",
+  "ControlText": "#FFE9B8",
+  "InputBg": "#FFF3DA",
+  "InputText": "#1B2A4A",
+  "Accent": "#FF8A1E",
+  "ButtonTextOnAccent": "#2A1A0D",
+  "TitleBarBg": "#13213C",
+  "TitleBarText": "#FFE9B8",
+  "ProgressBarColor": "#FF8A1E",
+  "ButtonGradientTop": "#FFB357",
+  "ButtonGradientBottom": "#E06A00",
+  "UseMedievalFont": false
+}

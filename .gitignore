@@ -1,0 +1,22 @@
+# Compilación
+bin/
+obj/
+publish/
+dist/
+installer/Output/
+TestResults/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Datos de ejecución (instancias, mundos, cuentas, API keys...)
+data/
+
+# Temporales
+*.log
+*.part
+*.tmp
+build-log.txt
