@@ -119,6 +119,49 @@
   .contact a { color: var(--cream); overflow-wrap: anywhere; }
   .contact .user { font-size: 1.3rem; }
 
+  .sections { display: grid; gap: 1.75rem; margin-top: 1.75rem; }
+  .sections .panel { margin-top: 0; }
+  h3 {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: .03em;
+    margin-bottom: .4rem;
+    color: var(--cream);
+  }
+  .features { display: grid; gap: 1.5rem; }
+  .features ul { margin-top: 0; font-size: 1.02rem; line-height: 1.55; }
+
+  .gallery { display: grid; gap: 1.25rem; }
+  .gallery figure { margin: 0; }
+  .gallery a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: .75rem;
+    border: 2px solid var(--tan);
+    background: rgba(0,0,0,.3);
+  }
+  .gallery a:focus-visible { outline: 3px solid var(--cream); outline-offset: 3px; }
+  .gallery img { display: block; max-width: 100%; max-height: 380px; width: auto; height: auto; }
+  .gallery figcaption { text-align: center; font-size: 1rem; color: var(--cream-dim); margin-top: .5rem; }
+
+  .faq details { border-top: 2px solid rgba(196,149,95,.45); }
+  .faq details:last-of-type { border-bottom: 2px solid rgba(196,149,95,.45); }
+  .faq summary {
+    cursor: pointer;
+    list-style: none;
+    padding: .9rem 2rem .9rem 0;
+    position: relative;
+    color: var(--cream);
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; position: absolute; right: .25rem; top: .8rem; font-size: 1.4rem; color: var(--tan); }
+  .faq details[open] summary::after { content: "\2212"; }
+  .faq summary:focus-visible { outline: 3px solid var(--cream); outline-offset: 2px; }
+  .faq details p { padding: 0 0 1rem; margin: 0; color: var(--cream-dim); }
+  .faq details a { color: var(--cream); }
+
   /* Escritorio: todo en menos altura */
   @media (min-width: 900px) {
     body { font-size: 1.1rem; line-height: 1.6; padding-bottom: 2.5rem; }
@@ -139,6 +182,9 @@
     h2 { font-size: 1.4rem; margin-bottom: .75rem; }
     .downloads { grid-template-columns: 1fr 1fr; margin-top: 1rem; }
     .bottom { grid-template-columns: 1.6fr 1fr; align-items: start; margin-top: 0; }
+    .sections { margin-top: 0; margin-bottom: 1.75rem; }
+    .features { grid-template-columns: 1fr 1fr; gap: 1.5rem 2.5rem; }
+    .gallery { grid-template-columns: repeat(3, 1fr); align-items: start; }
   }
 
   @media (max-width: 520px) { .panel { padding: 1.5rem 1.25rem; } }
@@ -170,6 +216,102 @@
         <p class="note">Velin no es un producto oficial de Minecraft ni está afiliado a Mojang o Microsoft.</p>
       </section>
     </div>
+  </div>
+
+  <div class="sections">
+    <section class="panel" id="funciones">
+      <h2>Funciones</h2>
+      <div class="features">
+        <div>
+          <h3>Instancias</h3>
+          <ul>
+            <li>Cada una con su propia carpeta: crear, duplicar, renombrar y eliminar</li>
+            <li>Exportar e importar: .zip de Velin, .mrpack de Modrinth y .zip de CurseForge</li>
+            <li>Grupos con filtro, orden por nombre, última vez jugada o tiempo jugado</li>
+            <li>Cambiar la versión o el loader conservando mundos, mods y configuración</li>
+            <li>Instancias con .jar propio</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Loaders</h3>
+          <ul>
+            <li>Vanilla, Fabric, Forge, Quilt y NeoForge</li>
+            <li>La lista solo muestra versiones compatibles y elige por defecto la estable más nueva</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Java y lanzamiento</h3>
+          <ul>
+            <li>Java Temurin descargado automáticamente según la versión de Minecraft</li>
+            <li>Detección de otros Java instalados y Java propio por instancia</li>
+            <li>Flags de JVM tipo Aikar y RAM fija por instancia</li>
+            <li>Ventana o pantalla completa, entrar directo a un servidor o mundo y argumentos extra</li>
+            <li>Descargas verificadas (SHA1 y tamaño) y reintentos</li>
+            <li>Consola en vivo y log de lanzamiento</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Contenido</h3>
+          <ul>
+            <li>Mods, modpacks, resource packs, shaders y datapacks desde Modrinth y CurseForge</li>
+            <li>Instalación automática de las dependencias obligatorias de los mods</li>
+            <li>Activar, desactivar, quitar y actualizar mods</li>
+            <li>Mundos: backup, duplicar, eliminar, exportar e importar</li>
+            <li>Copias de seguridad automáticas (opcionales) con restauración</li>
+            <li>Servidores con estado en vivo y capturas de pantalla con miniaturas</li>
+            <li>Vault: explorador de archivos propio con extracción de .zip, .7z y .rar</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Interfaz</h3>
+          <ul>
+            <li>Ventana propia sin bordes de Windows</li>
+            <li>Temas personalizables en .json (Velin medieval y Flash)</li>
+            <li>Español e inglés</li>
+            <li>Música de fondo con interruptor, sonido de click y pantalla de inicio opcional</li>
+            <li>Proxy opcional</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="galeria">
+      <h2>Galería</h2>
+      <div class="gallery">
+        <figure>
+          <a href="captura-principal.png" target="_blank" rel="noopener"><img src="captura-principal.png" alt="Pantalla principal de Velin con la lista de instancias y los botones" loading="lazy"></a>
+          <figcaption>Pantalla principal</figcaption>
+        </figure>
+        <figure>
+          <a href="captura-mods.png" target="_blank" rel="noopener"><img src="captura-mods.png" alt="Buscador de mods de Modrinth dentro de Velin" loading="lazy"></a>
+          <figcaption>Mods y contenido</figcaption>
+        </figure>
+        <figure>
+          <a href="captura-configuracion.png" target="_blank" rel="noopener"><img src="captura-configuracion.png" alt="Ventana de configuración de Velin" loading="lazy"></a>
+          <figcaption>Configuración</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="panel faq" id="preguntas">
+      <h2>Preguntas frecuentes</h2>
+      <details>
+        <summary>¿Por qué me da error al intentar agregar una cuenta de Microsoft?</summary>
+        <p>Velin todavía no está aprobado por Mojang. En futuras actualizaciones se agregará soporte.</p>
+      </details>
+      <details>
+        <summary>¿Es seguro?</summary>
+        <p>Velin es de código abierto y puedes consultar su <a href="https://github.com/Brhenja/Velin">código fuente</a>. Descárgalo desde sus fuentes oficiales.</p>
+      </details>
+      <details>
+        <summary>¿Por qué CurseForge no me funciona?</summary>
+        <p>Para que CurseForge funcione, tienes que agregar tu API en Configuración, en el apartado que dice "API de CurseForge".</p>
+      </details>
+      <details>
+        <summary>Velin no me inicia, ¿por qué?</summary>
+        <p>Puede deberse a varias razones. <a href="#contacto">Envíame un mensaje</a> con el error que tengas y trataré de ayudarte.</p>
+      </details>
+    </section>
   </div>
 
   <div class="bottom">
