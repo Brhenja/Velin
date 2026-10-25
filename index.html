@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Velin — Launcher de Minecraft by Brhenja</title>
+<meta name="description" content="Velin es un launcher de Minecraft para gestionar instancias, mods, mundos y más.">
+<link rel="icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=MedievalSharp&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #2a1a0d;
+    --bg-mid: #4a2f17;
+    --bg-light: #6b4521;
+    --tan: #c4955f;
+    --cream: #f1e2c4;
+    --cream-dim: #d3bd98;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html { min-height: 100%; background: var(--bg-dark); }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(160deg, var(--bg-light) 0%, var(--bg-mid) 45%, var(--bg-dark) 100%) fixed;
+    color: var(--cream);
+    font-family: "MedievalSharp", Georgia, serif;
+    font-size: 1.15rem;
+    line-height: 1.7;
+    padding: 0 1.25rem 3rem;
+  }
+  main { max-width: 720px; margin: 0 auto; }
+
+  .hero { text-align: center; padding: 4rem 0 2.5rem; }
+  .hero img {
+    width: min(300px, 70vw);
+    height: auto;
+    image-rendering: pixelated;
+    filter: drop-shadow(0 10px 0 rgba(0,0,0,.35));
+  }
+  h1 {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(3.5rem, 12vw, 6rem);
+    letter-spacing: .06em;
+    line-height: 1;
+    margin-top: 1.5rem;
+    text-shadow: 0 3px 0 rgba(0,0,0,.45);
+  }
+  .by {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: .12em;
+    margin-top: .75rem;
+    color: var(--cream-dim);
+  }
+
+  .panel {
+    border: 3px solid var(--tan);
+    background: rgba(30, 18, 8, .45);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,.3);
+    padding: 2rem 2.25rem;
+    margin-top: 1.75rem;
+  }
+  h2 {
+    font-family: "Cinzel", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    letter-spacing: .04em;
+    margin-bottom: 1rem;
+  }
+  p + p { margin-top: 1rem; }
+  ul { padding-left: 1.2rem; margin-top: 1rem; }
+  li { margin-bottom: .25rem; }
+  li::marker { color: var(--tan); }
+
+  .downloads { display: grid; gap: .9rem; margin-top: 1.25rem; }
+  .btn {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    color: var(--cream);
+    font-family: "MedievalSharp", Georgia, serif;
+    font-size: 1.2rem;
+    padding: .85rem 1rem;
+    border: 2px solid var(--tan);
+    background: linear-gradient(180deg, #8a5a2b, #5e3a1a);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.35);
+    transition: transform .08s ease, background .15s ease;
+  }
+  .btn:hover { background: linear-gradient(180deg, #a06b35, #6e4521); }
+  .btn:active { transform: translateY(2px); }
+  .btn:focus-visible { outline: 3px solid var(--cream); outline-offset: 3px; }
+  .btn.alt { background: transparent; box-shadow: inset 0 0 0 2px rgba(0,0,0,.3); }
+  .btn.alt:hover { background: rgba(196,149,95,.2); }
+  .note { font-size: 1rem; color: var(--cream-dim); margin-top: 1rem; }
+
+  footer {
+    text-align: center;
+    margin-top: 2.5rem;
+    font-size: 1rem;
+    color: var(--cream-dim);
+  }
+  footer a { color: var(--cream); }
+
+  @media (max-width: 520px) { .panel { padding: 1.5rem 1.25rem; } }
+</style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <img src="icon.png" alt="Icono de Velin">
+    <h1>Velin</h1>
+    <div class="by">By Brhenja</div>
+  </header>
+
+  <section class="panel">
+    <h2>¿Qué es Velin?</h2>
+    <p>Un launcher de Minecraft Java para Windows: liviano, sin vueltas y con estética medieval.</p>
+    <p>Cada instancia tiene su propia carpeta, Java se descarga solo, funciona con Fabric, Forge, Quilt y NeoForge, y podés buscar mods, modpacks, resource packs y shaders de Modrinth y CurseForge sin salir del launcher.</p>
+  </section>
+
+  <section class="panel" id="descargas">
+    <h2>Descargas</h2>
+    <div class="downloads">
+      <a class="btn" href="https://github.com/Brhenja/Velin/releases/download/v1.0.0/VelinSetup-1.0.0.exe">Instalador (.exe)</a>
+      <a class="btn" href="https://github.com/Brhenja/Velin/releases/download/v1.0.0/Velin-1.0.0-portable-win-x64.zip">Versión portable (.zip)</a>
+    </div>
+    <p class="note">Versión 1.0.0 para Windows 10 u 11 de 64 bits. El instalador no está firmado, así que Windows puede mostrar un aviso: elegí «Más información» y después «Ejecutar de todas formas».</p>
+    <p class="note">Velin no es un producto oficial de Minecraft ni está afiliado a Mojang o Microsoft.</p>
+  </section>
+
+  <footer>Hecho por <a href="https://github.com/Brhenja">Brhenja</a></footer>
+</main>
+</body>
+</html>
