@@ -1,11 +1,12 @@
 # Login de Microsoft en Velin — guía para forks
 
-> **Estado en Velin 1.0.0:** el login premium está **desactivado** en la versión oficial. El código del flujo
-> está implementado, pero `Velin/Services/MicrosoftAuthConfig.cs` tiene el `ClientId` vacío, porque Mojang todavía
-> no aprobó ninguna app de Velin. Con el `ClientId` vacío, la ventana **Cuentas** avisa que el login de Microsoft
-> no está disponible y todo lo demás funciona con cuentas offline.
+> **Estado en Velin 1.1.0:** el login premium está **activado** en la versión oficial: `Velin/Services/MicrosoftAuthConfig.cs`
+> trae el Client ID de la app de Azure de Velin, ya aprobada por Mojang.
 >
-> Esta guía es para quien haga un **fork** y quiera activarlo con su propia app de Azure.
+> Esta guía es para quien haga un **fork**: la app de Azure de Velin **no sirve para otros launchers** (cada launcher
+> debe registrar y hacer aprobar la suya), así que en un fork hay que reemplazar el `ClientId` por el propio. Con el
+> `ClientId` vacío, la ventana **Cuentas** avisa que el login de Microsoft no está disponible y todo lo demás
+> funciona con cuentas offline.
 
 ## Cómo funciona
 Botón **Cuentas → Iniciar sesión con Microsoft**: se abre el navegador (OAuth con PKCE y redirección a
@@ -35,6 +36,7 @@ en el código y los usuarios nunca lo cargan.
 `data\settings.json` acepta `"MicrosoftClientId": "..."`. Solo sirve para pruebas: si está vacío se usa el de
 `MicrosoftAuthConfig`.
 
-## Qué no está verificado
-El flujo completo contra los servidores reales de Microsoft/Xbox/Mojang **no se pudo probar** (hace falta un Client ID
-aprobado). Solo hay pruebas automáticas del servidor local que recibe la redirección del navegador.
+## Qué está verificado
+Hay pruebas automáticas del servidor local que recibe la redirección del navegador. El flujo completo contra los
+servidores reales de Microsoft/Xbox/Mojang depende de que tu app esté aprobada; si algo falla, el mensaje que muestra
+la ventana **Cuentas** indica en qué paso (Microsoft, Xbox, XSTS o Minecraft) y por qué.

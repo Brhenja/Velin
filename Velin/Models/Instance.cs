@@ -36,6 +36,7 @@ namespace Velin.Models
         public long TotalPlaySeconds { get; set; }
 
         // Opciones de lanzamiento por instancia. Todas opcionales: vacío/0/false = comportamiento de siempre.
+        public string JavaRuntime { get; set; } = "";       // "" = Temurin automático; "graalvm" / "semeru" = Java opcional (se activa en Configuración)
         public string JavaPath { get; set; } = "";        // Java propio (si no, se usa el que baja el launcher)
         public string ExtraGameArgs { get; set; } = "";   // argumentos extra del juego
         public int WindowWidth { get; set; } = 0;
@@ -70,7 +71,7 @@ namespace Velin.Models
         {
             EnsureFolders();
             var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(ConfigFile, json);
+            Velin.Services.AtomicFile.WriteAllText(ConfigFile, json);
         }
 
         public static Instance? Load(string dir)

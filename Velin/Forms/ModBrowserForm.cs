@@ -19,6 +19,7 @@ namespace Velin.Forms
         private readonly Button _btnSearch = new();
         private readonly ListBox _results = new() { ItemHeight = 34 };
         private readonly Button _btnInstall = new();
+        private readonly Button _btnDetails = new();
 
         private readonly ListBox _installed = new() { ItemHeight = 34 };
         private readonly Button _btnRemove = new();
@@ -47,9 +48,17 @@ namespace Velin.Forms
             Content.Controls.Add(_results);
 
             _btnInstall.Text = Localization.T("btn_install_arrow");
-            _btnInstall.SetBounds(12, 442, 240, 32);
+            _btnInstall.SetBounds(12, 442, 200, 32);
             _btnInstall.Click += async (s, e) => await InstallAsync();
             Content.Controls.Add(_btnInstall);
+
+            // Detalles: descripción, imágenes y enlaces oficiales (también con doble clic en un resultado o en un mod instalado).
+            _btnDetails.Text = Localization.T("btn_details");
+            _btnDetails.SetBounds(218, 442, 204, 32);
+            _btnDetails.Click += (s, e) => ShowDetails();
+            Content.Controls.Add(_btnDetails);
+            _results.DoubleClick += (s, e) => ShowDetails();
+            _installed.DoubleClick += (s, e) => ShowInstalledDetails();
 
             Content.Controls.Add(new Label { Text = Localization.T("lbl_installed_mods"), AutoSize = true, Location = new Point(438, 50) });
 
@@ -76,6 +85,18 @@ namespace Velin.Forms
 
             Load += (s, e) => RefreshInstalled();
             Theme.Apply(this);
+        }
+
+        private void ShowDetails()
+        {
+            if (_results.SelectedItem is ContentProject item) ContentUi.OpenDetails(this, item);
+        }
+
+        private void ShowInstalledDetails()
+        {
+            if (_installed.SelectedItem is not InstalledItem item || item.Mod.ProjectId.Length == 0) return;
+            using var form = new ProjectDetailForm(ContentSources.ParseSource(item.Mod.Source), item.Mod.ProjectId, item.Mod.ProjectTitle);
+            form.ShowDialog(this);
         }
 
         private class InstalledItem

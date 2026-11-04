@@ -6,6 +6,7 @@ namespace Velin.Services
 {
     public static class SettingsManager
     {
+        private static readonly object _lock = new();
         private static string FilePath => Path.Combine(PathService.DataDir, "settings.json");
 
         public static AppSettings Load()
@@ -34,7 +35,7 @@ namespace Velin.Services
         public static void Save(AppSettings settings)
         {
             PathService.EnsureAll();
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
+            lock (_lock) AtomicFile.WriteAllText(FilePath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
         }
     }
 }

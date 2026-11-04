@@ -15,6 +15,7 @@ namespace Velin.Services
     {
         public static bool MusicEnabled = true;
         public static bool ClickEnabled = true;
+        public static int MusicVolume = 100; // 0-100
 
         private static WaveOutEvent? _device;
         private static MixingSampleProvider? _mixer;
@@ -72,7 +73,7 @@ namespace Velin.Services
             try
             {
                 if (!File.Exists(_musicPath)) return;
-                _musicReader = new AudioFileReader(_musicPath);
+                _musicReader = new AudioFileReader(_musicPath) { Volume = MusicVolume / 100f };
                 _musicInput = new LoopingSampleProvider(_musicReader);
                 _mixer.AddMixerInput(_musicInput);
             }
@@ -97,6 +98,13 @@ namespace Velin.Services
         }
 
         public static void SetClickEnabled(bool enabled) => ClickEnabled = enabled;
+
+        // Cambia el volumen de la música en vivo (sin reiniciarla).
+        public static void SetMusicVolume(int percent)
+        {
+            MusicVolume = Math.Clamp(percent, 0, 100);
+            try { if (_musicReader != null) _musicReader.Volume = MusicVolume / 100f; } catch { }
+        }
 
         public static void PlayClick()
         {

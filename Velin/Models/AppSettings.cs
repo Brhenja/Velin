@@ -32,5 +32,21 @@ namespace Velin.Models
         public bool KeepLauncherOpen { get; set; } = false;
         // Filtro de grupo en la lista de instancias ("" = todas).
         public string GroupFilter { get; set; } = "";
+
+        // --- Novedades 1.1.0 ---
+        // Java opcionales (GraalVM 21 / IBM Semeru OpenJ9): se descargan y se activan en Configuración;
+        // recién activados aparecen para elegir en las opciones de cada instancia.
+        public bool GraalVmEnabled { get; set; } = false;
+        public bool SemeruEnabled { get; set; } = false;
+        // Flags de JVM optimizados (G1 / OpenJ9 según el Java). Si se apaga, se usan solo -Xms/-Xmx.
+        public bool UseOptimizedFlags { get; set; } = true;
+        // Argumentos de JVM extra que se agregan a TODAS las instancias.
+        public string GlobalJvmArgs { get; set; } = "";
+        // Volumen de la música de fondo (0-100).
+        public int MusicVolume { get; set; } = 100;
+        // Fuente que aparece primero en los buscadores de contenido: "modrinth" o "curseforge".
+        public string DefaultContentSource { get; set; } = "modrinth";
+        // Pedir confirmación antes de eliminar una instancia.
+        public bool ConfirmDelete { get; set; } = true;
     }
 }

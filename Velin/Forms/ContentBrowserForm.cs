@@ -23,6 +23,7 @@ namespace Velin.Forms
         private readonly Button _btnSearch = new();
         private readonly ListBox _results = new() { ItemHeight = 34 };
         private readonly Button _btnInstall = new();
+        private readonly Button _btnDetails = new();
         private readonly ListBox _installed = new() { ItemHeight = 34 };
         private readonly Button _btnRemove = new();
         private readonly Button _btnOpenFolder = new();
@@ -51,9 +52,15 @@ namespace Velin.Forms
             Content.Controls.Add(_results);
 
             _btnInstall.Text = Localization.T("btn_install_arrow");
-            _btnInstall.SetBounds(12, 442, 240, 32);
+            _btnInstall.SetBounds(12, 442, 200, 32);
             _btnInstall.Click += async (s, e) => await InstallAsync();
             Content.Controls.Add(_btnInstall);
+
+            _btnDetails.Text = Localization.T("btn_details");
+            _btnDetails.SetBounds(218, 442, 204, 32);
+            _btnDetails.Click += (s, e) => { if (_results.SelectedItem is ContentProject p) ContentUi.OpenDetails(this, p); };
+            Content.Controls.Add(_btnDetails);
+            _results.DoubleClick += (s, e) => { if (_results.SelectedItem is ContentProject p) ContentUi.OpenDetails(this, p); };
 
             if (kind == ContentKind.DataPack)
             {

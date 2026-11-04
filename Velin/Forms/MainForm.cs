@@ -72,6 +72,7 @@ namespace Velin.Forms
 
             BuildMenu();
             _list.ContextMenuStrip = _menu;
+            _menu.Opening += (s, e) => Theme.StyleMenu(_menu);
 
             _btnNew.Text = Localization.T("btn_new_instance");
             _btnNew.SetBounds(330, 12, 200, 32);
@@ -285,7 +286,7 @@ namespace Velin.Forms
         {
             var enabled = Selected != null;
             _btnPlay.Enabled = enabled;
-            _btnMods.Enabled = enabled;
+            _btnMods.Enabled = true; // siempre activo: sin instancias ofrece crear una
             _btnDelete.Enabled = enabled;
             _btnMore.Enabled = enabled;
             _btnCheckUpdates.Enabled = enabled;
@@ -311,7 +312,7 @@ namespace Velin.Forms
             _btnImport.Enabled = !busy;
             _sort.Enabled = !busy;
             _btnPlay.Enabled = !busy && hasSelection;
-            _btnMods.Enabled = !busy && hasSelection;
+            _btnMods.Enabled = !busy;
             _btnDelete.Enabled = !busy && hasSelection;
             _btnMore.Enabled = !busy && hasSelection;
             _btnCheckUpdates.Enabled = !busy && hasSelection;
@@ -345,7 +346,14 @@ namespace Velin.Forms
         private void OpenContent()
         {
             var inst = Selected;
-            if (inst == null) return;
+            if (inst == null)
+            {
+                // Sin instancias (o ninguna elegida): el contenido vive dentro de una instancia, así que se ofrece crearla.
+                var answer = MessageBox.Show(this, Localization.T(_list.Items.Count == 0 ? "msg_no_instances_create" : "msg_select_instance"),
+                    "Velin", _list.Items.Count == 0 ? MessageBoxButtons.YesNo : MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (answer == DialogResult.Yes) CreateInstance();
+                return;
+            }
             if (inst.McVersion.Length == 0)
             {
                 MessageBox.Show(this, Localization.T("cj_need_version"), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -621,15 +629,22 @@ namespace Velin.Forms
             try
             {
                 if (keepOpen)
+                {
                     new LogViewerForm(Localization.T("console_title", inst.Name), GameLauncher.LogPathFor(inst)).Show();
+                    _status.Text = Localization.T("status_playing");
+                }
                 else
+                {
+                    _status.Text = "";
                     Hide();
+                }
                 SoundManager.StopMusic();
                 await mcProcess.WaitForExitAsync();
             }
             catch { /* si algo falla monitoreando el proceso, igual lo mostramos de nuevo abajo */ }
             finally
             {
+                _status.Text = ""; // antes quedaba el cartel "Minecraft se está iniciando" después de cerrar el juego
                 Show();
                 WindowState = FormWindowState.Normal;
                 Activate();
@@ -769,7 +784,9 @@ namespace Velin.Forms
         {
             var inst = Selected;
             if (inst == null) return;
-            var res = MessageBox.Show(this, Localization.T("confirm_delete", inst.Name), "Velin", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            var res = SettingsManager.Load().ConfirmDelete
+                ? MessageBox.Show(this, Localization.T("confirm_delete", inst.Name), "Velin", MessageBoxButtons.YesNo, MessageBoxIcon.Warning)
+                : DialogResult.Yes;
             if (res != DialogResult.Yes) return;
 
             SetBusy(true);

@@ -74,16 +74,30 @@ namespace Velin.Services
 
             // Reparto del progreso real entre etapas: Java 0-15%, cliente+librerías 15-40%,
             // assets 40-100% (suelen ser, por lejos, lo que más tarda la primera vez).
-            string javaExe;
+            string javaExe = "";
             if (customJava.Length > 0)
             {
                 javaExe = customJava; // Java elegido a mano para esta instancia: no se baja nada
             }
-            else
+            else if (!string.IsNullOrEmpty(instance.JavaRuntime))
+            {
+                // Java opcional (GraalVM / Semeru) activado en Configuración y elegido en esta instancia.
+                javaExe = OptionalJavaManager.ResolveExe(instance.JavaRuntime, profile.JavaMajor,
+                    new AppSettingsView(appSettings.GraalVmEnabled, appSettings.SemeruEnabled));
+                if (javaExe.Length == 0)
+                    Warn($"El Java opcional elegido para esta instancia ({instance.JavaRuntime}) no está disponible para Minecraft {instance.McVersion} " +
+                         "(no está instalado, está desactivado en Configuración o es demasiado viejo). Se usa Temurin automático.");
+            }
+            if (javaExe.Length == 0)
             {
                 progress?.Report($"Preparando Java {profile.JavaMajor}...");
                 javaExe = await JavaManager.EnsureJavaAsync(profile.JavaMajor, progress, new StageProgress(percent, 0.0, 0.15), ct);
             }
+
+            // Qué JVM es (HotSpot, GraalVM u OpenJ9) decide qué flags de arranque se pueden usar.
+            var javaInfo = JavaScanner.Describe(javaExe);
+            if (javaInfo.Major > 0 && javaInfo.Major < profile.JavaMajor)
+                Warn($"Minecraft {instance.McVersion} necesita Java {profile.JavaMajor} o más nuevo, pero el Java elegido es el {javaInfo.Major}. Puede que el juego no arranque.");
 
             await MinecraftDownloader.DownloadClientAndLibrariesAsync(profile, instance.VersionsDir, instance.McVersion, instance.NativesDir, extraLibDir, progress, new StageProgress(percent, 0.15, 0.25), Warn, ct,
                 customJarPath: instance.CustomJar.Length > 0 ? Path.Combine(instance.InstanceDir, instance.CustomJar) : null);
@@ -93,7 +107,9 @@ namespace Velin.Services
             var classpath = BuildClasspath(profile, instance, extraLibDir);
             var mainClass = profile.MainClass;
 
-            var jvmArgs = JavaArgsBuilder.BuildAikarFlags(instance.RamMB);
+            var jvmArgs = JavaArgsBuilder.Build(instance.RamMB, javaInfo.Flavor, appSettings.UseOptimizedFlags);
+            // Argumentos de JVM globales (Configuración); los de la instancia van después y pisan a los globales.
+            jvmArgs.AddRange(ArgsParser.Split(appSettings.GlobalJvmArgs ?? ""));
 
             var gameArgs = BuildGameArgs(profile, instance, session);
             AddLaunchOptionArgs(gameArgs, instance, Warn);

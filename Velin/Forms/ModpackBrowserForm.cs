@@ -44,6 +44,7 @@ namespace Velin.Forms
 
             _results.SetBounds(12, 72, 410, 360);
             _results.SelectedIndexChanged += async (s, e) => await OnSelectedAsync();
+            _results.DoubleClick += (s, e) => { if (_results.SelectedItem is ContentProject p) ContentUi.OpenDetails(this, p); };
             Content.Controls.Add(_results);
 
             _title.AutoSize = false;

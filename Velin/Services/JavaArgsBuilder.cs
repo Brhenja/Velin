@@ -4,6 +4,35 @@ namespace Velin.Services
 {
     public static class JavaArgsBuilder
     {
+        // Elige los flags según la JVM que se va a usar. OpenJ9 (Semeru) NO entiende los flags de G1/HotSpot,
+        // así que tiene su propio juego; GraalVM corre sobre HotSpot y usa los mismos que Temurin.
+        public static List<string> Build(int ramMB, JavaFlavor flavor, bool optimized)
+        {
+            if (!optimized) return BuildMinimal(ramMB);
+            return flavor == JavaFlavor.OpenJ9 ? BuildOpenJ9Flags(ramMB) : BuildAikarFlags(ramMB);
+        }
+
+        // Sin optimizaciones: solo memoria y codificación.
+        public static List<string> BuildMinimal(int ramMB) => new()
+        {
+            $"-Xms{System.Math.Min(ramMB, 512)}M",
+            $"-Xmx{ramMB}M",
+            "-Dfile.encoding=UTF-8"
+        };
+
+        // OpenJ9: política de GC "gencon" (la recomendada para juegos/aplicaciones interactivas) y caché de clases compartida
+        // (acelera mucho los arranques siguientes). Nada de flags -XX de G1.
+        public static List<string> BuildOpenJ9Flags(int ramMB) => new()
+        {
+            $"-Xms{ramMB}M",
+            $"-Xmx{ramMB}M",
+            "-Xgcpolicy:gencon",
+            "-Xshareclasses:name=velin",
+            "-Dfile.encoding=UTF-8",
+            "-Dsun.rmi.dgc.server.gcInterval=2147483646",
+            "-Dsun.rmi.dgc.client.gcInterval=2147483646"
+        };
+
         // Aikar's Flags adaptados para cliente: minimizan los lag spikes del garbage collector (G1GC).
         public static List<string> BuildAikarFlags(int ramMB)
         {
@@ -19,8 +48,7 @@ namespace Velin.Services
                 // OJO: a propósito NO usamos -XX:+AlwaysPreTouch. Ese flag hace que Java
                 // reserve TODA la RAM configurada de una sola vez al arrancar, lo cual en
                 // un servidor (que corre días seguidos) no se nota, pero en un launcher de
-                // cliente puede trabar la PC un instante justo al iniciar el juego — muy
-                // probablemente la causa del tirón/estática que reportaste.
+                // cliente puede trabar la PC un instante justo al iniciar el juego.
                 "-XX:G1NewSizePercent=30",
                 "-XX:G1MaxNewSizePercent=40",
                 "-XX:G1HeapRegionSize=8M",

@@ -52,7 +52,7 @@ namespace Velin.Services
             var entry = manifest.Versions.FirstOrDefault(v => v.Id == mcVersion)
                 ?? throw new Exception($"Versión {mcVersion} no encontrada en el manifest de Mojang");
             var json = await _http.GetStringAsync(entry.Url);
-            await File.WriteAllTextAsync(cacheFile, json);
+            await AtomicFile.WriteAllTextAsync(cacheFile, json);
             return JsonSerializer.Deserialize<MojangVersionJson>(json)!;
         }
 
@@ -428,7 +428,7 @@ namespace Velin.Services
             else
             {
                 json = await _http.GetStringAsync(profile.AssetIndex.Url, ct);
-                await File.WriteAllTextAsync(indexFile, json);
+                await AtomicFile.WriteAllTextAsync(indexFile, json);
             }
 
             var index = JsonSerializer.Deserialize<AssetIndexJson>(json)!;

@@ -41,6 +41,10 @@ namespace Velin.Services
         }
 
         // Versiones de un proyecto (las más nuevas primero), opcionalmente sólo las de una versión de Minecraft.
+        // JSON crudo del proyecto (descripción completa, galería, enlaces). Se interpreta en ProjectDetailsService.
+        public Task<string> GetProjectJsonAsync(string projectIdOrSlug) =>
+            _http.GetStringAsync($"{Base}/project/{Uri.EscapeDataString(projectIdOrSlug)}");
+
         public async Task<List<ModrinthVersion>> GetProjectVersionsAsync(string projectId, string? mcVersion)
         {
             var url = $"{Base}/project/{Uri.EscapeDataString(projectId)}/version";

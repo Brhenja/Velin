@@ -72,6 +72,7 @@ namespace Velin.Forms
 
             BuildContextMenu();
             _list.ContextMenuStrip = _menu;
+            _menu.Opening += (s, e) => Theme.StyleMenu(_menu);
 
             _btnAdd.Text = Localization.T("btn_add_file");
             _btnAdd.SetBounds(12, 376, 110, 32);

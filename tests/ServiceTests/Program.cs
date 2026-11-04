@@ -540,6 +540,65 @@ Check(File.ReadAllText(Path.Combine(finSaves, "Mundo1", "level.dat")) == "origin
 Check(!Directory.Exists(Path.Combine(finSaves, "saves")) && !Directory.Exists(Path.Combine(finSaves, "MundoNuevo")), "restaurar backup: no queda saves\\saves y se reemplaza lo anterior");
 Check(!Directory.GetDirectories(finRi.GameDir).Any(d => Path.GetFileName(d).Contains(".restoring-") || Path.GetFileName(d).Contains(".old-")), "restaurar backup: no deja carpetas temporales");
 
+Console.WriteLine("== v1.1: Java opcionales (GraalVM / Semeru), flags y detalles de proyectos ==");
+void V11MakeJava(string root, string name, string release)
+{
+    var bin = Path.Combine(root, name, "bin");
+    Directory.CreateDirectory(bin);
+    File.WriteAllText(Path.Combine(bin, "javaw.exe"), "x");
+    File.WriteAllText(Path.Combine(root, name, "release"), release);
+}
+var v11Root = Path.Combine(tmp, "v11java");
+V11MakeJava(v11Root, "semeru", "JAVA_VERSION=\"21.0.5\"\nIMPLEMENTOR=\"IBM Corporation\"\nIMPLEMENTOR_VERSION=\"openj9-0.48.0\"\nJVM_VARIANT=\"Openj9\"\n");
+V11MakeJava(v11Root, "graal", "JAVA_VERSION=\"21.0.5\"\nIMPLEMENTOR=\"Oracle Corporation\"\nIMPLEMENTOR_VERSION=\"Oracle GraalVM 21.0.5+9.1\"\n");
+V11MakeJava(v11Root, "temurin", "JAVA_VERSION=\"17.0.9\"\nIMPLEMENTOR=\"Eclipse Adoptium\"\nJVM_VARIANT=\"Hotspot\"\n");
+var v11Semeru = JavaScanner.Describe(Path.Combine(v11Root, "semeru", "bin", "javaw.exe"));
+var v11Graal = JavaScanner.Describe(Path.Combine(v11Root, "graal", "bin", "javaw.exe"));
+var v11Temurin = JavaScanner.Describe(Path.Combine(v11Root, "temurin", "bin", "javaw.exe"));
+Check(v11Semeru.Flavor == JavaFlavor.OpenJ9 && v11Semeru.Major == 21, "JavaScanner reconoce IBM Semeru (OpenJ9)");
+Check(v11Graal.Flavor == JavaFlavor.GraalVM && v11Graal.Major == 21, "JavaScanner reconoce GraalVM");
+Check(v11Temurin.Flavor == JavaFlavor.HotSpot && v11Temurin.Vendor == "Temurin" && v11Temurin.Major == 17, "JavaScanner reconoce Temurin (HotSpot)");
+Check(JavaScanner.Describe(Path.Combine(v11Root, "no-existe", "bin", "javaw.exe")).Flavor == JavaFlavor.HotSpot, "Describe de un Java inexistente no falla");
+
+var v11J9 = JavaArgsBuilder.Build(2048, JavaFlavor.OpenJ9, true);
+Check(v11J9.Contains("-Xgcpolicy:gencon") && !v11J9.Any(a => a.Contains("G1")) && v11J9.Contains("-Xmx2048M"), "flags de OpenJ9: gencon y sin flags de G1");
+Check(JavaArgsBuilder.Build(2048, JavaFlavor.GraalVM, true).Contains("-XX:+UseG1GC") && JavaArgsBuilder.Build(2048, JavaFlavor.HotSpot, true).Contains("-XX:+UseG1GC"), "GraalVM y HotSpot usan los flags G1");
+var v11Min = JavaArgsBuilder.Build(4096, JavaFlavor.HotSpot, false);
+Check(v11Min.Contains("-Xmx4096M") && !v11Min.Any(a => a.Contains("G1")), "sin flags optimizados: solo memoria y codificación");
+
+var v11Graal21 = OptionalJavaManager.DirFor(OptionalJavaKind.GraalVM, 21);
+var v11Sem8 = OptionalJavaManager.DirFor(OptionalJavaKind.Semeru, 8);
+var v11Sem21 = OptionalJavaManager.DirFor(OptionalJavaKind.Semeru, 21);
+Directory.CreateDirectory(Path.Combine(v11Graal21, "jdk", "bin")); File.WriteAllText(Path.Combine(v11Graal21, "jdk", "bin", "javaw.exe"), "x");
+Directory.CreateDirectory(Path.Combine(v11Sem8, "j", "bin")); File.WriteAllText(Path.Combine(v11Sem8, "j", "bin", "javaw.exe"), "x");
+Directory.CreateDirectory(Path.Combine(v11Sem21, "j", "bin")); File.WriteAllText(Path.Combine(v11Sem21, "j", "bin", "javaw.exe"), "x");
+Check(OptionalJavaManager.IsInstalled(OptionalJavaKind.GraalVM, 21) && OptionalJavaManager.AnySemeruInstalled(), "los Java opcionales instalados se detectan");
+Check(OptionalJavaManager.ResolveExe("graalvm", 21, new AppSettingsView(true, false)).StartsWith(v11Graal21), "GraalVM activado se elige para Minecraft que pide Java 21");
+Check(OptionalJavaManager.ResolveExe("graalvm", 21, new AppSettingsView(false, true)) == "", "GraalVM desactivado no se usa");
+Check(OptionalJavaManager.ResolveExe("graalvm", 8, new AppSettingsView(true, true)) == "", "GraalVM 21 no se usa para Minecraft viejo (Java 8)");
+Check(OptionalJavaManager.ResolveExe("semeru", 8, new AppSettingsView(false, true)).StartsWith(v11Sem8), "Semeru 8 para Java 8");
+Check(OptionalJavaManager.ResolveExe("semeru", 17, new AppSettingsView(false, true)).StartsWith(v11Sem21), "Semeru: si no está el 17 se usa el 21 (más nuevo)");
+Check(OptionalJavaManager.ResolveExe("semeru", 21, new AppSettingsView(false, false)) == "" && OptionalJavaManager.ResolveExe("otro", 21, new AppSettingsView(true, true)) == "", "runtime desactivado o desconocido = vacío (cae a Temurin)");
+OptionalJavaManager.Remove(OptionalJavaKind.GraalVM, 21); OptionalJavaManager.Remove(OptionalJavaKind.Semeru, 8); OptionalJavaManager.Remove(OptionalJavaKind.Semeru, 21);
+Check(!OptionalJavaManager.IsInstalled(OptionalJavaKind.GraalVM, 21) && !OptionalJavaManager.AnySemeruInstalled(), "quitar un Java opcional borra su carpeta");
+
+var v11Old = new Instance { Name = "Vieja2" };
+Check(v11Old.JavaRuntime == "", "Instance nueva: JavaRuntime vacío (Temurin automático)");
+var v11Json = JsonSerializer.Serialize(new Instance { Name = "X", JavaRuntime = "semeru" });
+Check(JsonSerializer.Deserialize<Instance>(v11Json)!.JavaRuntime == "semeru" && JsonSerializer.Deserialize<Instance>("{\"Name\":\"Y\"}")!.JavaRuntime == "", "JavaRuntime se guarda y un instance.json viejo se sigue leyendo");
+
+var v11Mr = ProjectDetailsService.ParseModrinth("{\"id\":\"AANobbMI\",\"slug\":\"sodium\",\"project_type\":\"mod\",\"title\":\"Sodium\",\"description\":\"d\",\"body\":\"# Hola\",\"icon_url\":\"https://cdn.modrinth.com/x.png\",\"downloads\":12,\"source_url\":\"https://github.com/a/b\",\"issues_url\":\"javascript:alert(1)\",\"wiki_url\":null,\"gallery\":[{\"url\":\"https://cdn.modrinth.com/g.webp\",\"raw_url\":\"https://cdn.modrinth.com/g.png\",\"title\":\"T\"}]}", "autor");
+Check(v11Mr.Title == "Sodium" && v11Mr.Author == "autor" && v11Mr.Downloads == 12 && !v11Mr.BodyIsHtml && v11Mr.PageUrl == "https://modrinth.com/mod/sodium", "detalles de Modrinth: título, autor, descargas y página");
+Check(v11Mr.Links.Count == 2 && v11Mr.Links.All(l => l.Url.StartsWith("https://")), "detalles de Modrinth: los enlaces no http(s) se descartan");
+Check(v11Mr.Gallery.Count == 1 && v11Mr.Gallery[0].FallbackUrl == "https://cdn.modrinth.com/g.png", "detalles de Modrinth: galería con URL alternativa");
+var v11Cf = ProjectDetailsService.ParseCurseForge("{\"data\":{\"id\":238222,\"name\":\"JEI\",\"summary\":\"s\",\"downloadCount\":1234.0,\"authors\":[{\"name\":\"mezz\"}],\"logo\":{\"thumbnailUrl\":\"https://media.forgecdn.net/t.png\",\"url\":\"https://media.forgecdn.net/l.png\"},\"links\":{\"websiteUrl\":\"https://www.curseforge.com/minecraft/mc-mods/jei\",\"sourceUrl\":null},\"screenshots\":[{\"url\":\"https://media.forgecdn.net/s.png\",\"title\":\"x\"}]}}", "{\"data\":\"<p>Hola</p>\"}");
+Check(v11Cf.Id == "238222" && v11Cf.Author == "mezz" && v11Cf.BodyIsHtml && v11Cf.Body == "<p>Hola</p>" && v11Cf.IconUrl.EndsWith("t.png") && v11Cf.Gallery.Count == 1 && v11Cf.Links.Count == 1, "detalles de CurseForge: autor, logo, HTML, galería y enlace");
+Check(ProjectDetailsService.IsSafeUrl("https://modrinth.com") && !ProjectDetailsService.IsSafeUrl("file:///c:/x") && !ProjectDetailsService.IsSafeUrl("javascript:alert(1)") && !ProjectDetailsService.IsSafeUrl(null), "IsSafeUrl solo acepta http(s)");
+
+var v11Atomic = Path.Combine(tmp, "atomic", "a.json");
+AtomicFile.WriteAllText(v11Atomic, "uno"); AtomicFile.WriteAllText(v11Atomic, "dos");
+Check(File.ReadAllText(v11Atomic) == "dos" && Directory.GetFiles(Path.GetDirectoryName(v11Atomic)!, "*.tmp").Length == 0, "AtomicFile reemplaza el contenido y no deja temporales");
+
 Console.WriteLine($"\nRESULTADO: {total - fails}/{total} pruebas OK");
 Directory.Delete(tmp, true);
 if (PathService.DataDir.Contains("ServiceTests", StringComparison.OrdinalIgnoreCase) && Directory.Exists(PathService.DataDir))

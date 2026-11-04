@@ -152,6 +152,11 @@ namespace Velin.UI
                             cb.DrawItem -= ComboBoxDrawItem;
                             cb.DrawItem += ComboBoxDrawItem;
                             break;
+                        case RichTextBox rtb:
+                            rtb.BackColor = InputBg;
+                            rtb.ForeColor = InputText;
+                            rtb.BorderStyle = BorderStyle.FixedSingle;
+                            break;
                         case TextBox tb:
                             tb.BackColor = InputBg;
                             tb.ForeColor = InputText;
@@ -191,14 +196,69 @@ namespace Velin.UI
             var rect = b.ClientRectangle;
             if (rect.Width <= 0 || rect.Height <= 0) return;
 
-            using var grad = new LinearGradientBrush(rect, ButtonGradientTop, ButtonGradientBottom, 90f);
+            var top = ButtonGradientTop;
+            var bottom = ButtonGradientBottom;
+            var text = b.ForeColor;
+            var border = Accent;
+
+            if (!b.Enabled)
+            {
+                // Deshabilitado: se ve apagado (antes se veía igual que uno activo y parecía "trabado").
+                text = Mix(ControlText, bottom, 0.55);
+                border = Mix(Accent, bottom, 0.6);
+            }
+            else if (b.ClientRectangle.Contains(b.PointToClient(Control.MousePosition)))
+            {
+                // Hover: se aclara en temas oscuros y se oscurece en temas claros.
+                top = IsLight(top) ? Darken(top, 14) : Lighten(top, 16);
+                bottom = IsLight(bottom) ? Darken(bottom, 14) : Lighten(bottom, 16);
+            }
+
+            using var grad = new LinearGradientBrush(rect, top, bottom, 90f);
             e.Graphics.FillRectangle(grad, rect);
 
-            TextRenderer.DrawText(e.Graphics, b.Text, b.Font, rect, b.ForeColor,
+            TextRenderer.DrawText(e.Graphics, b.Text, b.Font, rect, text,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
 
-            using var pen = new Pen(Accent);
+            using var pen = new Pen(border);
             e.Graphics.DrawRectangle(pen, 0, 0, rect.Width - 1, rect.Height - 1);
+        }
+
+        private static bool IsLight(Color c) => (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) > 150;
+
+        private static Color Mix(Color a, Color b, double t) =>
+            Color.FromArgb(255, (int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
+
+        // Menús contextuales y desplegables con los colores del tema (antes salían siempre en gris claro de Windows).
+        public static void StyleMenu(ToolStrip menu)
+        {
+            menu.Renderer = new ToolStripProfessionalRenderer(new ThemedColors());
+            menu.BackColor = ControlBg;
+            menu.ForeColor = ControlText;
+            menu.Font = UiFont(9f);
+            foreach (ToolStripItem item in menu.Items)
+            {
+                item.ForeColor = ControlText;
+                item.BackColor = ControlBg;
+            }
+        }
+
+        private sealed class ThemedColors : ProfessionalColorTable
+        {
+            public ThemedColors() { UseSystemColors = false; }
+            public override Color ToolStripDropDownBackground => ControlBg;
+            public override Color ImageMarginGradientBegin => ControlBg;
+            public override Color ImageMarginGradientMiddle => ControlBg;
+            public override Color ImageMarginGradientEnd => ControlBg;
+            public override Color MenuBorder => Accent;
+            public override Color MenuItemBorder => Accent;
+            public override Color MenuItemSelected => Mix(ControlBg, ControlText, 0.2);
+            public override Color MenuItemSelectedGradientBegin => Mix(ControlBg, ControlText, 0.2);
+            public override Color MenuItemSelectedGradientEnd => Mix(ControlBg, ControlText, 0.2);
+            public override Color MenuItemPressedGradientBegin => Mix(ControlBg, ControlText, 0.2);
+            public override Color MenuItemPressedGradientEnd => Mix(ControlBg, ControlText, 0.2);
+            public override Color SeparatorDark => Mix(ControlText, ControlBg, 0.7);
+            public override Color SeparatorLight => ControlBg;
         }
 
         private static Color Lighten(Color c, int amount) =>

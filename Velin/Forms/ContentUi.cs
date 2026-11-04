@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using Velin.Models;
+using Velin.Services;
 using Velin.UI;
 
 namespace Velin.Forms
@@ -11,6 +12,13 @@ namespace Velin.Forms
     {
         public static ContentSource SourceOf(ComboBox combo) =>
             combo.SelectedIndex == 1 ? ContentSource.CurseForge : ContentSource.Modrinth;
+
+        // Abre la ventana de detalles (descripción, imágenes y enlaces) de un resultado de búsqueda.
+        public static void OpenDetails(IWin32Window owner, ContentProject project)
+        {
+            using var form = new ProjectDetailForm(project.Source, project.Id, project.Title, project.Author);
+            form.ShowDialog(owner);
+        }
 
         public static string SourceName(ContentSource s) => s == ContentSource.CurseForge ? "CurseForge" : "Modrinth";
 
@@ -24,7 +32,8 @@ namespace Velin.Forms
             source.Items.Clear();
             source.Items.Add("Modrinth");
             source.Items.Add("CurseForge");
-            source.SelectedIndex = 0;
+            var preferCurse = !lockToModrinth && string.Equals(SettingsManager.Load().DefaultContentSource, "curseforge", StringComparison.OrdinalIgnoreCase);
+            source.SelectedIndex = preferCurse ? 1 : 0;
             source.Enabled = !lockToModrinth;
             source.SetBounds(12, 14, 112, 24);
             content.Controls.Add(source);
@@ -38,7 +47,7 @@ namespace Velin.Forms
 
             var hint = new Label
             {
-                Text = HintText(ContentSource.Modrinth),
+                Text = HintText(preferCurse ? ContentSource.CurseForge : ContentSource.Modrinth),
                 AutoSize = true,
                 Location = new Point(12, 50),
                 Font = new Font("Segoe UI", 8.5f, FontStyle.Italic)

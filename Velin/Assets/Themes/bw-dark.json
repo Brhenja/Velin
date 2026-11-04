@@ -1,0 +1,17 @@
+{
+  "Name": "Black & White (oscuro)",
+  "BgDark": "#0B0B0B",
+  "BgLight": "#0B0B0B",
+  "ControlBg": "#161616",
+  "ControlText": "#F2F2F2",
+  "InputBg": "#1F1F1F",
+  "InputText": "#FFFFFF",
+  "Accent": "#FFFFFF",
+  "ButtonTextOnAccent": "#000000",
+  "TitleBarBg": "#000000",
+  "TitleBarText": "#F2F2F2",
+  "ProgressBarColor": "#FFFFFF",
+  "ButtonGradientTop": "#1C1C1C",
+  "ButtonGradientBottom": "#1C1C1C",
+  "UseMedievalFont": false
+}

@@ -16,6 +16,8 @@ namespace Velin.Forms
     {
         private readonly Instance _instance;
         private readonly TextBox _java = new();
+        private readonly ComboBox _runtime = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+        private bool _graalOk, _semeruOk;
         private readonly NumericUpDown _width = new() { Minimum = 0, Maximum = 7680 };
         private readonly NumericUpDown _height = new() { Minimum = 0, Maximum = 4320 };
         private readonly CheckBox _fullscreen = new();
@@ -28,7 +30,7 @@ namespace Velin.Forms
         public LaunchOptionsForm(Instance instance) : base(Localization.T("lo_title", instance.Name))
         {
             _instance = instance;
-            LockSize(420, 474);
+            LockSize(420, 532);
             StartPosition = FormStartPosition.CenterParent;
 
             int y = 12;
@@ -45,9 +47,29 @@ namespace Velin.Forms
             Content.Controls.Add(_account);
             y += 36;
 
+            // Java de la instancia: automático (Temurin), uno de los opcionales activados en Configuración o uno propio.
+            var appSettings = SettingsManager.Load();
+            _graalOk = appSettings.GraalVmEnabled && OptionalJavaManager.IsInstalled(OptionalJavaKind.GraalVM, OptionalJavaManager.GraalMajor);
+            _semeruOk = appSettings.SemeruEnabled && OptionalJavaManager.AnySemeruInstalled();
+            Content.Controls.Add(new Label { Text = Localization.T("lo_java_runtime"), AutoSize = true, Location = new Point(12, y) });
+            y += 22;
+            _runtime.Items.Add(Localization.T("lo_rt_auto"));
+            _runtime.Items.Add(Localization.T("lo_rt_graal") + (_graalOk ? "" : Localization.T("lo_rt_unavailable")));
+            _runtime.Items.Add(Localization.T("lo_rt_semeru") + (_semeruOk ? "" : Localization.T("lo_rt_unavailable")));
+            _runtime.Items.Add(Localization.T("lo_rt_custom"));
+            _runtime.SetBounds(12, y, 396, 24);
+            Content.Controls.Add(_runtime);
+            y += 36;
+
             Content.Controls.Add(new Label { Text = Localization.T("lo_java"), AutoSize = true, Location = new Point(12, y) });
             y += 22;
             _java.Text = instance.JavaPath;
+            _runtime.SelectedIndex = instance.JavaPath.Length > 0 ? 3
+                : instance.JavaRuntime == "graalvm" ? 1
+                : instance.JavaRuntime == "semeru" ? 2 : 0;
+            // Escribir/elegir una ruta propia pasa solo a "Personalizado"; elegir un runtime vacía la ruta.
+            _java.TextChanged += (s, e) => { if (_java.Text.Trim().Length > 0 && _runtime.SelectedIndex != 3) _runtime.SelectedIndex = 3; };
+            _runtime.SelectedIndexChanged += (s, e) => { if (_runtime.SelectedIndex < 3 && _java.Text.Length > 0) _java.Text = ""; };
             _java.SetBounds(12, y, 300, 24);
             Content.Controls.Add(_java);
             var browse = new Button { Text = Localization.T("btn_browse") };
@@ -130,7 +152,12 @@ namespace Velin.Forms
 
         private void OnSave(object? sender, EventArgs e)
         {
-            var java = _java.Text.Trim();
+            var java = _runtime.SelectedIndex == 3 ? _java.Text.Trim() : "";
+            if ((_runtime.SelectedIndex == 1 && !_graalOk) || (_runtime.SelectedIndex == 2 && !_semeruOk))
+            {
+                MessageBox.Show(this, Localization.T("lo_rt_pick_unavailable"), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             if (java.Length > 0 && !File.Exists(java))
             {
                 MessageBox.Show(this, Localization.T("lo_java") + "\n\n" + java, "Velin", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -139,6 +166,7 @@ namespace Velin.Forms
 
             _instance.AccountId = _account.SelectedIndex > 0 ? _accounts[_account.SelectedIndex - 1].Id : "";
             _instance.JavaPath = java;
+            _instance.JavaRuntime = _runtime.SelectedIndex == 1 ? "graalvm" : _runtime.SelectedIndex == 2 ? "semeru" : "";
             _instance.WindowWidth = (int)_width.Value;
             _instance.WindowHeight = (int)_height.Value;
             _instance.Fullscreen = _fullscreen.Checked;

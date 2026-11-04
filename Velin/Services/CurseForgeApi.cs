@@ -68,6 +68,10 @@ namespace Velin.Services
             return JsonSerializer.Deserialize<CfListResponse<CfMod>>(json)?.Data ?? new List<CfMod>();
         }
 
+        // JSON crudo del mod (logo, capturas, enlaces) y su descripción en HTML. Se interpretan en ProjectDetailsService.
+        public Task<string> GetModJsonAsync(int modId) => SendAsync(HttpMethod.Get, $"{Base}/mods/{modId}");
+        public Task<string> GetModDescriptionJsonAsync(int modId) => SendAsync(HttpMethod.Get, $"{Base}/mods/{modId}/description");
+
         public async Task<List<CfFile>> GetFilesAsync(int modId, string? mcVersion, int loaderType)
         {
             var url = $"{Base}/mods/{modId}/files?pageSize=50";

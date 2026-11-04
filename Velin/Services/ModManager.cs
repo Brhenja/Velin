@@ -30,7 +30,7 @@ namespace Velin.Services
         public static void SaveIndex(Instance instance, InstalledModsIndex index)
         {
             Directory.CreateDirectory(instance.InstanceDir);
-            File.WriteAllText(IndexFile(instance), JsonSerializer.Serialize(index, new JsonSerializerOptions { WriteIndented = true }));
+            AtomicFile.WriteAllText(IndexFile(instance), JsonSerializer.Serialize(index, new JsonSerializerOptions { WriteIndented = true }));
         }
 
         public static string LoaderCategoryName(ModLoaderType t) => t switch

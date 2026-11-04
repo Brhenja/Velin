@@ -32,6 +32,7 @@ namespace Velin
             Theme.Current = ThemeManager.FindByName(settings.ThemeName);
             SoundManager.MusicEnabled = settings.MusicEnabled;
             SoundManager.ClickEnabled = settings.ClickSoundEnabled;
+            SoundManager.MusicVolume = Math.Clamp(settings.MusicVolume, 0, 100);
 
             PathService.EnsureAll();
             SoundManager.Init();
