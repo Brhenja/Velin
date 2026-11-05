@@ -192,9 +192,6 @@ a.row:hover, a.row:focus-visible { background: rgba(196, 149, 95, .2); transform
 .bar .url { text-decoration: none; }
 .bar a.url:hover { color: var(--cream); text-decoration: underline; text-underline-offset: 4px; }
 
-.box .shot { position: absolute; left: 0; right: 0; top: 14%; width: 100%; height: 44%; object-fit: cover; background: #1a0f06; border-block: 2px solid rgba(196, 149, 95, .6); }
-.box.has-shot .glyph { inset: 14% 0 auto 0; height: 44%; font-size: calc(var(--cw) * .22); text-shadow: 0 3px 0 rgba(0, 0, 0, .65); }
-.box.has-shot .title { z-index: 1; }
 
 .toggles { position: fixed; right: max(10px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); z-index: 6; display: flex; flex-direction: column; gap: 10px; }
 .tog {
@@ -255,6 +252,65 @@ a.row:hover, a.row:focus-visible { background: rgba(196, 149, 95, .2); transform
   .games { gap: 28px 18px; }
   .stage { padding-left: 16px; padding-right: 8px; }
 }
+
+.thumb { position: absolute; inset: 0; }
+.txt { display: contents; }
+.mob { display: none; }
+#totop { display: none; }
+.box .shot { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; background: #1a0f06; }
+.box.has-shot .art { display: none; }
+.box .icon.round { image-rendering: auto; border-radius: 50%; width: 58%; top: 43%; }
+.games.wide { --ww: clamp(240px, calc((100vh - 340px) * 1.6), 400px); grid-template-columns: repeat(auto-fit, var(--ww)); }
+.games.wide .box { aspect-ratio: 16 / 10; }
+.box.wide .title { padding: 38px 12px 10px; font-size: 17px; }
+.box.wide.has-shot .glyph { inset: 0 0 24px; font-size: 54px; padding-left: .08em; color: #fff; text-shadow: 0 3px 14px rgba(0, 0, 0, .7); }
+
+@media (max-width: 700px) {
+  html, body { height: auto; overflow: auto; }
+  body { overflow-x: hidden; }
+  #dust { display: none; }
+  #app { display: block; height: auto; min-height: 100vh; position: relative; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .nav { gap: 12px; padding-block: 16px 10px; }
+  .brand { font-size: 24px; }
+  .center { flex-basis: 100%; padding: 0; }
+  .pills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; overflow: visible; padding: 0; width: 100%; }
+  .pill { text-align: center; padding: 14px 4px; font-size: 14px; letter-spacing: .08em; border: 2px solid rgba(196, 149, 95, .5); background: rgba(0, 0, 0, .22); }
+  .pill .count { display: none; }
+  .pill[aria-selected="true"] { border-color: var(--tan); }
+  .pill:hover { transform: none; }
+  .stage { overflow: visible; display: block; padding: 18px 0 24px; }
+  .games, .games.wide { --cw: 76px; grid-template-columns: minmax(0, 1fr); gap: 12px; justify-content: stretch; }
+  .box, .games.wide .box { display: flex; align-items: center; gap: 14px; aspect-ratio: auto; padding: 10px; border-width: 2px; background: rgba(30, 18, 8, .5); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .3), 0 4px 0 rgba(0, 0, 0, .3); }
+  .box.selected { transform: none; }
+  .box.selected::before { display: none; }
+  .thumb { position: relative; inset: auto; flex: 0 0 76px; aspect-ratio: 2 / 3; border: 2px solid var(--tan); box-shadow: 0 4px 0 rgba(0, 0, 0, .3); overflow: hidden; }
+  .box .glyph { inset: 0; font-size: 28px; }
+  .box .title { position: static; padding: 0; text-align: left; background: none; font-size: 18px; }
+  .box.wide .title { padding: 0; font-size: 18px; }
+  .txt { display: block; min-width: 0; flex: 1 1 auto; }
+  .mob { display: block; margin-top: 4px; }
+  .mob .mk { display: block; font: 500 12px/1.3 var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--tan); }
+  .mob .md { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-top: 4px; font-size: 15px; line-height: 1.4; color: var(--dim); }
+  .box.wide, .games.wide .box.wide { flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
+  .box.wide .thumb { flex: none; width: 100%; aspect-ratio: 16 / 10; border-width: 0 0 2px; box-shadow: none; }
+  .box.wide .txt { padding: 12px 14px 14px; }
+  .box.wide.has-shot .glyph { inset: 0; font-size: 44px; }
+  .spot { display: none; }
+  .doc { padding: 0 0 12px; }
+  .toggles { position: absolute; top: 14px; right: max(16px, env(safe-area-inset-right, 0px)); transform: none; flex-direction: row; gap: 8px; }
+  .tog { width: 44px; height: 44px; padding: 0; align-content: center; }
+  .bar { position: static; margin-top: 4px; padding: 14px 0 24px; }
+  #totop { display: inline-block; }
+}
+
+.games.wide { --ww: clamp(240px, calc((100vh - 340px) * 1.4), 360px); }
+.box.wide { border: 0; box-shadow: 0 8px 22px rgba(0, 0, 0, .45); }
+@media (max-width: 700px) {
+  .nav { padding-block: 14px 10px; gap: 14px; }
+  .brand { line-height: 44px; }
+  .box.wide, .games.wide .box.wide { border: 0; box-shadow: 0 4px 0 rgba(0, 0, 0, .3); }
+  .box.wide .thumb { border: 0; }
+}
 </style>
 </head>
 <body>
@@ -274,7 +330,7 @@ a.row:hover, a.row:focus-visible { background: rgba(196, 149, 95, .2); transform
     <div class="info"><h2 id="spot-title"></h2><div class="meta" id="spot-meta"></div><p id="spot-desc"></p></div>
     <div class="side"><div class="chips" id="spot-chips"></div><div class="actions" id="spot-actions"></div></div>
   </section>
-  <footer class="bar"><span class="bar-left"></span></footer>
+  <footer class="bar"><span class="bar-left"></span><button class="copy" id="totop" type="button">↑ Categorías</button></footer>
 </div>
 <div class="toggles" role="group" aria-label="Sonido">
   <button class="tog" id="tog-music" type="button" aria-pressed="true" aria-label="Música de fondo" title="Música de fondo">
@@ -299,12 +355,12 @@ window.DECK = {
     { id: "inicio", label: "Inicio", html:
       '<div class="doc wide"><div class="hero"><img class="hero-icon" src="' + A("icon.png") + '" alt="Icono de Velin">' +
       '<div><h1>Velin</h1><div class="by">By Brhenja</div></div></div>' +
-      '<p>Un launcher de Minecraft Java para Windows: liviano, con muy bajo consumo de recursos y muchas funciones útiles.</p>' +
+      '<p>Un launcher de Minecraft Java para Windows con soporte para cuentas de Minecraft premium: liviano, con muy bajo consumo de recursos y muchas funciones útiles.</p>' +
       '<p>Cada instancia tiene su propia carpeta, Java se descarga solo, funciona con Fabric, Forge, Quilt y NeoForge, y podés buscar mods, modpacks, resource packs y shaders de Modrinth y CurseForge sin salir del launcher.</p>' +
       '<h2>Descargas</h2>' +
       '<div class="btns"><a class="btn big" data-dl="exe" href="' + REL + 'VelinSetup-1.0.0.exe">Instalador (.exe)</a>' +
       '<a class="btn big" data-dl="zip" href="' + REL + 'Velin-1.0.0-portable-win-x64.zip">Versión portable (.zip)</a></div>' +
-      '<p class="ver">Última versión: <b data-ver>v1.0.0</b> · <span data-reldate>Windows 10 u 11 de 64 bits</span></p>' +
+      '<p class="ver">Última versión: <b data-ver>v1.1.1</b> · <span data-reldate>Windows 10 u 11 de 64 bits</span></p>' +
       '<p class="note">Para Windows 10 u 11 de 64 bits. El instalador no está firmado, así que Windows puede mostrar un aviso: elegí «Más información» y después «Ejecutar de todas formas».</p>' +
       '<p class="note">Velin no es un producto oficial de Minecraft ni está afiliado a Mojang o Microsoft.</p></div>' },
     { id: "funciones", label: "Funciones", html:
@@ -340,7 +396,7 @@ window.DECK = {
       '<li>Música de fondo con interruptor, sonido de click y pantalla de inicio opcional</li>' +
       '<li>Proxy opcional</li></ul></div>' +
       '</div></div>' },
-    { id: "galeria", label: "Galería", type: "grid", items: [
+    { id: "galeria", label: "Galería", type: "grid", wide: true, items: [
       { name: "Pantalla principal", glyph: "I", img: A("captura-principal.png"), kind: "Captura",
         desc: "La pantalla principal de Velin con la lista de instancias y los botones.", tags: ["Instancias"],
         links: [{ label: "Ver en grande", url: "captura-principal.png" }], a: 28, b: 20, motif: "rings", seed: 201 },
@@ -350,7 +406,7 @@ window.DECK = {
       { name: "Configuración", glyph: "III", img: A("captura-configuracion.png"), kind: "Captura",
         desc: "La ventana de configuración de Velin.", tags: ["Ajustes"],
         links: [{ label: "Ver en grande", url: "captura-configuracion.png" }], a: 34, b: 18, motif: "stripes", seed: 207 },
-      { name: "Review del launcher", glyph: "▶", keepGlyph: true, img: "https://i.ytimg.com/vi/Q0_SXW16naQ/hqdefault.jpg", kind: "Video", year: "YouTube",
+      { name: "Review del launcher", glyph: "▶", keepGlyph: true, img: "https://i.ytimg.com/vi/Q0_SXW16naQ/maxresdefault.jpg", imgFallback: "https://i.ytimg.com/vi/Q0_SXW16naQ/mqdefault.jpg", kind: "Video", year: "YouTube",
         desc: "Una review de Velin en video.", tags: ["Review"],
         links: [{ label: "Ver en YouTube", url: "https://www.youtube.com/watch?v=Q0_SXW16naQ" }], a: 18, b: 38, motif: "checker", seed: 209 }
     ] },
@@ -439,27 +495,34 @@ window.DECK = {
 
     var sec = document.createElement("section");
     sec.id = "panel-" + c.id; sec.setAttribute("role", "tabpanel"); sec.setAttribute("aria-labelledby", "tab-" + c.id); sec.hidden = true;
-    if (c.items) { sec.innerHTML = '<div class="games" id="games-' + c.id + '"></div>'; state.sel[c.id] = 0; }
+    if (c.items) { sec.innerHTML = '<div class="games' + '" id="games-' + c.id + '"></div>'; state.sel[c.id] = 0; }
     else sec.innerHTML = c.html;
     stage.appendChild(sec);
   });
 
+  function setMk(it) { if (it._mk) it._mk.textContent = it.kind + (it.year ? " · " + it.year : ""); }
   function build(cat) {
     var host = $("#games-" + cat.id);
+    if (cat.wide) host.classList.add("wide");
     cat.items.forEach(function (it, i) {
       var links = it.links || [], el = document.createElement(links.length ? "a" : "div");
-      el.className = "box"; el.tabIndex = 0;
+      el.className = "box" + (cat.wide ? " wide" : ""); el.tabIndex = 0;
       if (links.length) { el.href = links[0].url; el.target = "_blank"; el.rel = "noopener"; }
       el.setAttribute("aria-label", it.name);
-      el.innerHTML = '<div class="art">' + art(it.a, it.b, it.motif, it.seed) + '</div><div class="glyph">' + esc(it.glyph) + '</div><div class="title">' + esc(it.name) + "</div>";
-      var glyph = el.querySelector(".glyph"), title = el.querySelector(".title");
+      el.innerHTML = '<div class="thumb"><div class="art">' + art(it.a, it.b, it.motif, it.seed) + '</div><div class="glyph">' + esc(it.glyph) + '</div></div>' +
+        '<div class="txt"><div class="title">' + esc(it.name) + '</div><div class="mob"><span class="mk"></span><span class="md">' + esc(it.desc) + "</span></div></div>";
+      var thumb = el.querySelector(".thumb"), glyph = el.querySelector(".glyph");
+      it._fill = function () { el.querySelector(".mk").textContent = it.kind + (it.year ? " · " + it.year : ""); };
+      it._fill();
       if (it.icon) {
-        var im = new Image(); im.className = "icon"; im.alt = ""; im.src = it.icon;
-        im.onload = function () { glyph.hidden = true; el.insertBefore(im, title); };
+        var im = new Image(); im.className = "icon" + (it.iconRound ? " round" : ""); im.alt = ""; im.src = it.icon;
+        im.onload = function () { glyph.hidden = true; thumb.insertBefore(im, glyph); };
       }
       if (it.img) {
-        var sh = new Image(); sh.className = "shot"; sh.alt = ""; sh.src = it.img;
-        sh.onload = function () { el.classList.add("has-shot"); if (!it.keepGlyph) glyph.hidden = true; el.insertBefore(sh, glyph); };
+        var sh = new Image(); sh.className = "shot"; sh.alt = "";
+        sh.onerror = function () { if (it.imgFallback && sh.src.indexOf(it.imgFallback) < 0) sh.src = it.imgFallback; };
+        sh.onload = function () { el.classList.add("has-shot"); if (!it.keepGlyph) glyph.hidden = true; if (!sh.parentNode) thumb.insertBefore(sh, glyph); };
+        sh.src = it.img;
       }
       el.addEventListener("mouseenter", function () { select(cat, i, false); });
       el.addEventListener("focus", function () { if (state.sel[cat.id] !== i) select(cat, i, false); });
@@ -488,7 +551,7 @@ window.DECK = {
     var list = boxes(); i = Math.max(0, Math.min(list.length - 1, i));
     list.forEach(function (b, k) { b.classList.toggle("selected", k === i); });
     state.sel[cat.id] = i;
-    if (scroll) { list[i].focus({ preventScroll: true }); list[i].scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+    if (scroll) { (list[i].querySelector(".face") || list[i]).focus({ preventScroll: true }); list[i].scrollIntoView({ block: "nearest", behavior: "smooth" }); }
     updateSpot();
   }
 
@@ -499,7 +562,8 @@ window.DECK = {
       $("#tab-" + c.id).setAttribute("aria-selected", on ? "true" : "false");
       $("#panel-" + c.id).hidden = !on;
     });
-    stage.scrollTop = 0;
+    stage.scrollTop = 0; window.scrollTo(0, 0);
+    if (matchMedia("(max-width: 700px)").matches) window.scrollTo(0, 0);
     if (cats[i].items) select(cats[i], state.sel[cats[i].id] || 0, false); else updateSpot();
     var t = $("#tab-" + cats[i].id); if (t.scrollIntoView) t.scrollIntoView({ block: "nearest", inline: "center" });
     try { history.replaceState(null, "", "#" + cats[i].id); } catch (e) {}
@@ -522,10 +586,11 @@ window.DECK = {
     else if (k === "ArrowUp") next = cur - n;
     else if (k === "Home") next = 0;
     else if (k === "End") next = list.length - 1;
-    else if (k === "Enter" && (tag === "BODY" || (e.target.classList && e.target.classList.contains("box")))) { e.preventDefault(); list[cur].click(); return; }
+    else if (k === "Enter" && (tag === "BODY" || (e.target.classList && e.target.classList.contains("box")))) { e.preventDefault(); (list[cur].querySelector(".face") || list[cur]).click(); return; }
     if (next != null) { e.preventDefault(); if (next >= 0 && next < list.length && next !== cur) { select(cat, next, true); sfx(); } }
   });
 
+  $("#totop").addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); sfx(); });
   $("#prev").addEventListener("click", function () { setCat(state.cat - 1); sfx(); });
   $("#next").addEventListener("click", function () { setCat(state.cat + 1); sfx(); });
 
@@ -550,8 +615,9 @@ window.DECK = {
     });
     cats.forEach(function (c) {
       (c.items || []).forEach(function (it) {
-        if (it.live && tag) it.year = "Última versión " + tag;
+        if (it.live && tag) { it.year = "Última versión " + tag; setMk(it); }
         (it.links || []).forEach(function (l) { if (l.dl) { var u = l.dl === "exe" ? exe : zip; if (u) l.url = u; } });
+        if (it._fill) it._fill();
       });
     });
     updateSpot();
@@ -574,7 +640,7 @@ window.DECK = {
   setTimeout(function () { var b = $("#boot"); if (b) b.remove(); }, 1500);
 
   /* ---------- Brasas de fondo ---------- */
-  var cv = $("#dust"), ctx = cv.getContext("2d"), W, H, parts = [], reduce = matchMedia("(prefers-reduced-motion: reduce)").matches, raf;
+  var cv = $("#dust"), ctx = cv.getContext("2d"), W, H, parts = [], reduce = matchMedia("(prefers-reduced-motion: reduce)").matches || matchMedia("(max-width: 700px)").matches, raf;
   function size() { var dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
   function seedP() { parts = []; var n = Math.round(Math.min(60, W * H / 20000)); for (var i = 0; i < n; i++) parts.push({ x: Math.random() * W, y: Math.random() * H, r: .6 + Math.random() * 1.6, v: .1 + Math.random() * .25, a: .12 + Math.random() * .4, p: Math.random() * 6 }); }
   function draw(t) {
