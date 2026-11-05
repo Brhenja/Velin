@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.1
+
+### Novedades
+- **Paginación** en todos los buscadores (mods, modpacks, resource packs, shaders y datapacks): botones ◀ / ▶ con "Página X de Y".
+  Antes solo se mostraban los primeros 30 resultados. (CurseForge no permite pasar de los primeros 10.000.)
+- **Gestor de skins** en Cuentas → Skins...: skin actual de la cuenta Microsoft, subir `.png` (Clásico/Slim), biblioteca
+  local (`data\skins`), vista previa 2D de frente y espalda, restaurar la skin por defecto y cara de la skin en la
+  ventana principal. Para cuentas offline, copia la skin a la instancia en el formato de CustomSkinLoader.
+
+### Correcciones
+- Íconos en negro en los detalles de mods: se usa la versión original (`raw_icon_url` de Modrinth / logo completo de
+  CurseForge) cuando la principal es `.webp`/`.svg`, y una letra si no hay ninguna que Windows pueda mostrar.
+- Los botones de enlaces cortaban el texto ("Reportar problemas"): ahora se ajustan al texto.
+- Las imágenes de la galería se pueden abrir completas (clic) en un visor con navegación.
+
 ## 1.1.0
 
 ### Novedades

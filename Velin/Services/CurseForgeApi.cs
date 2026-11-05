@@ -68,6 +68,18 @@ namespace Velin.Services
             return JsonSerializer.Deserialize<CfListResponse<CfMod>>(json)?.Data ?? new List<CfMod>();
         }
 
+        // Búsqueda paginada: index = posición del primer resultado. Devuelve los mods y el total que informa CurseForge.
+        public async Task<(List<CfMod> Mods, int Total)> SearchPageAsync(int classId, string query, string? mcVersion, int loaderType, int index, int pageSize = 30)
+        {
+            var url = $"{Base}/mods/search?gameId={GameId}&classId={classId}&searchFilter={Uri.EscapeDataString(query)}&sortField=2&sortOrder=desc&pageSize={pageSize}&index={Math.Max(0, index)}";
+            if (!string.IsNullOrEmpty(mcVersion)) url += "&gameVersion=" + Uri.EscapeDataString(mcVersion);
+            if (loaderType > 0) url += "&modLoaderType=" + loaderType;
+            var json = await SendAsync(HttpMethod.Get, url);
+            var resp = JsonSerializer.Deserialize<CfListResponse<CfMod>>(json);
+            var mods = resp?.Data ?? new List<CfMod>();
+            return (mods, resp?.Pagination?.TotalCount ?? mods.Count);
+        }
+
         // JSON crudo del mod (logo, capturas, enlaces) y su descripción en HTML. Se interpretan en ProjectDetailsService.
         public Task<string> GetModJsonAsync(int modId) => SendAsync(HttpMethod.Get, $"{Base}/mods/{modId}");
         public Task<string> GetModDescriptionJsonAsync(int modId) => SendAsync(HttpMethod.Get, $"{Base}/mods/{modId}/description");

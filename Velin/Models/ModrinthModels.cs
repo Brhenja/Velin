@@ -6,6 +6,7 @@ namespace Velin.Models
     public class ModrinthSearchResult
     {
         [JsonPropertyName("hits")] public List<ModrinthSearchHit> Hits { get; set; } = new();
+        [JsonPropertyName("total_hits")] public int TotalHits { get; set; }
     }
 
     public class ModrinthSearchHit

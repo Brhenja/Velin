@@ -27,6 +27,7 @@ namespace Velin.Forms
         private readonly Button _addMicrosoft = new();
         private readonly Button _remove = new();
         private readonly Button _makeDefault = new();
+        private readonly Button _skins = new();
 
         public AccountsForm() : base(Localization.T("acc_title"))
         {
@@ -70,6 +71,11 @@ namespace Velin.Forms
             info.Text = MicrosoftAuth.IsConfigured(settings0.MicrosoftClientId) ? Localization.T("acc_ms_hint") : Localization.T("acc_ms_unavailable");
             Content.Controls.Add(info);
 
+            _skins.Text = Localization.T("acc_skins");
+            _skins.SetBounds(12, 318, 150, 32);
+            _skins.Click += (s, e) => OpenSkins();
+            Content.Controls.Add(_skins);
+
             var close = new Button { Text = Localization.T("btn_close"), DialogResult = DialogResult.OK };
             close.SetBounds(332, 318, 110, 32);
             Content.Controls.Add(close);
@@ -98,6 +104,7 @@ namespace Velin.Forms
         {
             _remove.Enabled = Selected != null;
             _makeDefault.Enabled = Selected != null;
+            _skins.Enabled = Selected != null;
         }
 
         private void AddOffline()
@@ -147,6 +154,18 @@ namespace Velin.Forms
             {
                 MessageBox.Show(this, Localization.T("error_operation") + "\n\n" + ex.Message, "Velin", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        private void OpenSkins()
+        {
+            var acc = Selected;
+            if (acc == null)
+            {
+                MessageBox.Show(this, Localization.T("skins_pick_account"), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            using var form = new SkinsForm(acc);
+            form.ShowDialog(this);
         }
 
         // La primera cuenta que se agrega pasa a ser la predeterminada.

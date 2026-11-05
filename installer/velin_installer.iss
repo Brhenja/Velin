@@ -1,9 +1,9 @@
 ﻿; Velin - instalador (Inno Setup 6.3 o superior)
 ; Se compila con build.ps1 (que publica el programa en ..\publish y pasa /DAppVersion=<version>).
-; A mano: ISCC.exe /DAppVersion=1.1.0 installer\velin_installer.iss
+; A mano: ISCC.exe /DAppVersion=1.1.1 installer\velin_installer.iss
 
 #ifndef AppVersion
-  #define AppVersion "1.1.0"
+  #define AppVersion "1.1.1"
 #endif
 #define AppName "Velin"
 #define AppPublisher "Brhenja"

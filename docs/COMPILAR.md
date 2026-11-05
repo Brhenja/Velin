@@ -35,7 +35,7 @@ dotnet run --project tests\ServiceTests -c Release
 dotnet publish Velin\Velin.csproj -c Release -r win-x64 --self-contained true -p:DebugType=none -p:DebugSymbols=false -o publish
 
 # Instalador
-& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=1.1.0 installer\velin_installer.iss
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=1.1.1 installer\velin_installer.iss
 ```
 
 ## Cambiar de versión

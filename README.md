@@ -21,6 +21,18 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 > son de Brhenja; el código lo escribió **Claude**, la IA de Anthropic. Los recursos (música, sonido de click, mascota
 > del tema Flash e ícono) también los generó una IA.
 
+## Novedades de la versión 1.1.1
+
+- **Páginas en el buscador:** los resultados de mods, modpacks, resource packs, shaders y datapacks se recorren con
+  **◀ Anterior / Siguiente ▶** (antes solo se veían los primeros 30).
+- **Gestor de skins** (en **Cuentas → Skins...**): skin actual de una cuenta Microsoft, subir un `.png` y cambiarla,
+  biblioteca local de skins (modelo Clásico o Slim), vista previa 2D de frente y de espalda, y restaurar la skin por
+  defecto. La cara de la skin de la cuenta aparece en la ventana principal.
+- **Cuentas offline:** Mojang no tiene skins para ellas; Velin copia la skin a la instancia en el formato del mod
+  [CustomSkinLoader](https://modrinth.com/mod/customskinloader), que hay que tener instalado en esa instancia.
+- **Detalles de mods:** el ícono ya no queda en negro cuando es `.webp`/`.svg` (se usa la versión original o una
+  letra), los botones de enlaces se ajustan a su texto y las imágenes de la galería se ven completas con un clic.
+
 ## Novedades de la versión 1.1.0
 
 - **Login de Microsoft (cuentas premium) activado** con el Client ID aprobado por Mojang. También se puede seguir
@@ -52,13 +64,13 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 
 Bajá lo que prefieras de la página de [Releases](https://github.com/Brhenja/Velin/releases):
 
-**Instalador (`VelinSetup-1.1.0.exe`)**
+**Instalador (`VelinSetup-1.1.1.exe`)**
 1. Ejecutalo. No pide permisos de administrador: instala en `%LocalAppData%\Velin`.
 2. Elegí si querés acceso directo en el escritorio y terminá. Queda en el menú Inicio.
 3. Para desinstalar: *Configuración de Windows → Aplicaciones*. Te pregunta si querés borrar también tus datos
    (instancias y mundos); **por defecto no se borran**.
 
-**Portable (`Velin-1.1.0-portable-win-x64.zip`)**
+**Portable (`Velin-1.1.1-portable-win-x64.zip`)**
 1. Descomprimilo en una carpeta donde tu usuario pueda escribir (no en `Program Files`).
 2. Ejecutá `Velin.exe`. Para quitarlo, borrá la carpeta.
 
@@ -89,6 +101,7 @@ Los datos se guardan en la carpeta `data\` junto al `.exe`, así que podés move
 **Cuentas**
 - Desde **Cuentas** podés **iniciar sesión con Microsoft** (se abre el navegador; la sesión se guarda cifrada con DPAPI
   y se renueva sola) o crear cuentas offline (nombre libre). Elegís una por defecto o una por instancia.
+- **Skins...** abre el gestor de skins de la cuenta elegida (ver arriba). La biblioteca vive en `data\skins`.
 
 **.jar propio**
 1. Creá una carpeta dentro de `data\instances\` (por ejemplo `data\instances\Mi cliente`).
@@ -186,6 +199,7 @@ data\
   libraries\   librerías y assets de Minecraft
   assets\
   cache\       caché de imágenes de los detalles de mods
+  skins\       tu biblioteca de skins
   vault\       tu Vault personal
   themes\      tus temas JSON
   backups\     copias de seguridad de mundos

@@ -51,4 +51,29 @@ namespace Velin.Models
             return text;
         }
     }
+
+    // Una página de resultados de búsqueda (las dos fuentes se pueden recorrer por páginas).
+    public class ContentPage
+    {
+        // CurseForge no deja pasar de los primeros 10.000 resultados (index + pageSize <= 10000).
+        public const int MaxReachable = 10000;
+
+        public List<ContentProject> Items { get; set; } = new();
+        public int Page { get; set; }          // desde 0
+        public int PageSize { get; set; } = 30;
+        public int Total { get; set; }         // total de resultados que informa la fuente
+
+        public int TotalPages
+        {
+            get
+            {
+                if (PageSize <= 0) return 1;
+                var reachable = Math.Min(Total, MaxReachable);
+                return Math.Max(1, (reachable + PageSize - 1) / PageSize);
+            }
+        }
+
+        public bool HasPrevious => Page > 0;
+        public bool HasNext => Page + 1 < TotalPages;
+    }
 }

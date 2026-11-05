@@ -32,6 +32,7 @@ namespace Velin.Services
         public string Body { get; set; } = "";
         public bool BodyIsHtml { get; set; }
         public string IconUrl { get; set; } = "";
+        public string FallbackIconUrl { get; set; } = ""; // Modrinth: "raw_icon_url" (el original, casi siempre PNG) por si el principal es WebP/SVG
         public long Downloads { get; set; }
         public string PageUrl { get; set; } = "";
         public List<ProjectImage> Gallery { get; } = new();
@@ -73,6 +74,7 @@ namespace Velin.Services
                 Body = Str(r, "body"),
                 BodyIsHtml = false,
                 IconUrl = Str(r, "icon_url"),
+                FallbackIconUrl = Str(r, "raw_icon_url"),
                 Downloads = r.TryGetProperty("downloads", out var dl) && dl.ValueKind == JsonValueKind.Number ? dl.GetInt64() : 0
             };
             var slug = Str(r, "slug");
@@ -121,7 +123,8 @@ namespace Velin.Services
             if (m.TryGetProperty("logo", out var logo) && logo.ValueKind == JsonValueKind.Object)
             {
                 d.IconUrl = Str(logo, "thumbnailUrl");
-                if (d.IconUrl.Length == 0) d.IconUrl = Str(logo, "url");
+                d.FallbackIconUrl = Str(logo, "url");
+                if (d.IconUrl.Length == 0) { d.IconUrl = d.FallbackIconUrl; d.FallbackIconUrl = ""; }
             }
 
             if (m.TryGetProperty("links", out var links) && links.ValueKind == JsonValueKind.Object)

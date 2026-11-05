@@ -49,34 +49,50 @@ namespace Velin.Services
 
         // --- Búsqueda ---------------------------------------------------------------------------
 
+        public const int PageSize = 30;
+
         // instance puede ser null sólo para modpacks (no dependen de la versión de la instancia).
-        public static async Task<List<ContentProject>> SearchAsync(ContentSource source, ContentType type, string query, Instance? instance)
+        public static async Task<List<ContentProject>> SearchAsync(ContentSource source, ContentType type, string query, Instance? instance) =>
+            (await SearchPageAsync(source, type, query, instance, 0)).Items;
+
+        // Una página de resultados (page desde 0) con el total que informa la fuente.
+        public static async Task<ContentPage> SearchPageAsync(ContentSource source, ContentType type, string query, Instance? instance, int page)
         {
             if (type != ContentType.ModPack && instance == null) throw new ArgumentNullException(nameof(instance));
-            if (!Supports(source, type)) return new List<ContentProject>();
+            page = Math.Max(0, page);
+            var result = new ContentPage { Page = page, PageSize = PageSize };
+            if (!Supports(source, type)) return result;
 
             if (source == ContentSource.Modrinth)
             {
-                List<ModrinthSearchHit> hits = type == ContentType.Mod
-                    ? await MrApi.SearchAsync(query, instance!.McVersion, ModManager.LoaderCategoryName(instance.Loader))
-                    : await MrApi.SearchProjectsAsync(query, ModrinthType(type), type == ContentType.ModPack ? null : instance!.McVersion);
-                return hits.Select(h => new ContentProject
+                var found = await MrApi.SearchPageAsync(query, ModrinthType(type),
+                    type == ContentType.ModPack ? null : instance!.McVersion,
+                    type == ContentType.Mod ? ModManager.LoaderCategoryName(instance!.Loader) : null,
+                    page * PageSize, PageSize);
+                result.Total = found.TotalHits;
+                result.Items = found.Hits.Select(h => new ContentProject
                 {
                     Source = ContentSource.Modrinth, Id = h.ProjectId, Title = h.Title, Author = h.Author,
                     Description = h.Description, Downloads = h.Downloads
                 }).ToList();
+                return result;
             }
 
             var cf = CurseForgeApi.FromSettings();
-            var mods = await cf.SearchAsync(CurseForgeClass(type), query,
+            // CurseForge no permite pasar de index + pageSize = 10.000.
+            var index = Math.Min(page * PageSize, Math.Max(0, ContentPage.MaxReachable - PageSize));
+            var (mods, total) = await cf.SearchPageAsync(CurseForgeClass(type), query,
                 type == ContentType.ModPack ? null : instance!.McVersion,
-                type == ContentType.Mod ? CurseForgeService.LoaderId(instance!.Loader) : 0);
-            return mods.Select(m => new ContentProject
+                type == ContentType.Mod ? CurseForgeService.LoaderId(instance!.Loader) : 0,
+                index, PageSize);
+            result.Total = total;
+            result.Items = mods.Select(m => new ContentProject
             {
                 Source = ContentSource.CurseForge, Id = m.Id.ToString(CultureInfo.InvariantCulture), Title = m.Name,
                 Author = string.Join(", ", m.Authors.Select(a => a.Name).Take(2)),
                 Description = m.Summary, Downloads = (long)m.DownloadCount
             }).ToList();
+            return result;
         }
 
         // --- Versiones --------------------------------------------------------------------------

@@ -24,6 +24,8 @@ namespace Velin.Forms
         private CancellationTokenSource? _launchCts;
         private Process? _launchProcess;
         private readonly Label _accountLabel = new();
+        private readonly PictureBox _accountFace = new() { SizeMode = PictureBoxSizeMode.Normal, Visible = false };
+        private int _faceToken;
         private readonly ListBox _list = new();
         private readonly ContextMenuStrip _menu = new();
         private readonly Button _btnNew = new();
@@ -67,6 +69,8 @@ namespace Velin.Forms
             Content.Controls.Add(_list);
 
             _accountLabel.AutoSize = false;
+            _accountFace.SetBounds(12, 382, 32, 32);   // cara de la skin de la cuenta Microsoft
+            Content.Controls.Add(_accountFace);
             _accountLabel.SetBounds(12, 388, 300, 20);
             Content.Controls.Add(_accountLabel);
 
@@ -303,6 +307,33 @@ namespace Velin.Forms
             var acc = AccountManager.Resolve(inst, SettingsManager.Load());
             var who = acc != null ? acc.ToString() : inst.Username + " (offline)";
             _accountLabel.Text = Localization.T("lbl_account_current", who);
+            _ = UpdateAccountFaceAsync(acc);
+        }
+
+        // Cara de la skin de la cuenta Microsoft al lado del nombre. Se muestra lo guardado y, si está viejo, se actualiza en segundo plano.
+        private async System.Threading.Tasks.Task UpdateAccountFaceAsync(Account? acc)
+        {
+            var token = ++_faceToken;
+            if (acc == null || !acc.IsMicrosoft) { SetAccountFace(null); return; }
+            SetAccountFace(SkinFaceCache.LoadFace(acc.Uuid, 32));
+            if (!SkinFaceCache.IsStale(acc.Uuid)) return;
+            try
+            {
+                var fresh = await SkinFaceCache.RefreshFaceAsync(acc.Uuid, 32);
+                if (IsDisposed || token != _faceToken) { fresh?.Dispose(); return; }
+                if (fresh != null) SetAccountFace(fresh);
+            }
+            catch { /* sin red o sin skin: se queda con lo que había */ }
+        }
+
+        private void SetAccountFace(System.Drawing.Bitmap? bmp)
+        {
+            var old = _accountFace.Image;
+            _accountFace.Image = bmp;
+            _accountFace.Visible = bmp != null;
+            _accountLabel.Left = bmp != null ? 50 : 12;
+            _accountLabel.Width = bmp != null ? 262 : 300;
+            old?.Dispose();
         }
 
         private void SetBusy(bool busy)

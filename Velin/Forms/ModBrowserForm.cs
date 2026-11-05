@@ -20,6 +20,7 @@ namespace Velin.Forms
         private readonly ListBox _results = new() { ItemHeight = 34 };
         private readonly Button _btnInstall = new();
         private readonly Button _btnDetails = new();
+        private readonly ResultsPager _pager = new(410);
 
         private readonly ListBox _installed = new() { ItemHeight = 34 };
         private readonly Button _btnRemove = new();
@@ -44,8 +45,12 @@ namespace Velin.Forms
                 await SearchAsync();
             };
 
-            _results.SetBounds(12, 72, 410, 360);
+            _results.SetBounds(12, 72, 410, 330);
             Content.Controls.Add(_results);
+
+            _pager.Location = new Point(12, 406);
+            _pager.PageRequested += async page => await SearchAsync(page);
+            Content.Controls.Add(_pager);
 
             _btnInstall.Text = Localization.T("btn_install_arrow");
             _btnInstall.SetBounds(12, 442, 200, 32);
@@ -155,20 +160,23 @@ namespace Velin.Forms
             RefreshInstalled();
         }
 
-        private async System.Threading.Tasks.Task SearchAsync()
+        private async System.Threading.Tasks.Task SearchAsync(int page = 0)
         {
             _status.Text = Localization.T("btn_search") + "...";
             _results.Items.Clear();
+            _pager.SetBusy(true);
             try
             {
                 var source = ContentUi.SourceOf(_source);
-                var hits = await ContentSources.SearchAsync(source, ContentType.Mod, _search.Text, _instance);
+                var result = await ContentSources.SearchPageAsync(source, ContentType.Mod, _search.Text, _instance, page);
                 if (source != ContentUi.SourceOf(_source)) return; // cambió de fuente mientras buscaba
-                foreach (var h in hits) _results.Items.Add(h);
-                _status.Text = Localization.T("results_count", hits.Count);
+                foreach (var h in result.Items) _results.Items.Add(h);
+                _pager.SetState(result);
+                _status.Text = Localization.T("results_count", Math.Max(result.Total, result.Items.Count));
             }
             catch (Exception ex)
             {
+                _pager.SetState(null);
                 _status.Text = "Error: " + ex.Message;
             }
         }

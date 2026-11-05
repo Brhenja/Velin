@@ -4,7 +4,19 @@ using System.Text.Json.Serialization;
 
 namespace Velin.Models
 {
-    public class CfListResponse<T> { [JsonPropertyName("data")] public List<T> Data { get; set; } = new(); }
+    public class CfListResponse<T>
+    {
+        [JsonPropertyName("data")] public List<T> Data { get; set; } = new();
+        [JsonPropertyName("pagination")] public CfPagination? Pagination { get; set; }
+    }
+
+    public class CfPagination
+    {
+        [JsonPropertyName("index")] public int Index { get; set; }
+        [JsonPropertyName("pageSize")] public int PageSize { get; set; }
+        [JsonPropertyName("resultCount")] public int ResultCount { get; set; }
+        [JsonPropertyName("totalCount")] public int TotalCount { get; set; }
+    }
     public class CfItemResponse<T> { [JsonPropertyName("data")] public T? Data { get; set; } }
 
     public class CfMod

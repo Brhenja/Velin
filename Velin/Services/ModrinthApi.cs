@@ -27,6 +27,18 @@ namespace Velin.Services
             return result?.Hits ?? new List<ModrinthSearchHit>();
         }
 
+        // Búsqueda paginada (offset = posición del primer resultado). loader = null no filtra por loader.
+        public async Task<ModrinthSearchResult> SearchPageAsync(string query, string projectType, string? mcVersion, string? loader, int offset, int limit = 30)
+        {
+            var facets = new List<string> { $"[\"project_type:{projectType}\"]" };
+            if (!string.IsNullOrEmpty(mcVersion)) facets.Add($"[\"versions:{mcVersion}\"]");
+            if (!string.IsNullOrEmpty(loader)) facets.Add($"[\"categories:{loader}\"]");
+            var facetJson = "[" + string.Join(",", facets) + "]";
+            var url = $"{Base}/search?query={Uri.EscapeDataString(query)}&limit={limit}&offset={Math.Max(0, offset)}&facets={Uri.EscapeDataString(facetJson)}";
+            var json = await _http.GetStringAsync(url);
+            return JsonSerializer.Deserialize<ModrinthSearchResult>(json) ?? new ModrinthSearchResult();
+        }
+
         // Búsqueda genérica por tipo de proyecto: "resourcepack", "shader", "datapack" o "modpack".
         // mcVersion = null no filtra por versión de Minecraft.
         public async Task<List<ModrinthSearchHit>> SearchProjectsAsync(string query, string projectType, string? mcVersion, int limit = 30)

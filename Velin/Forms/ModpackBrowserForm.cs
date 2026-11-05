@@ -18,6 +18,7 @@ namespace Velin.Forms
         private readonly TextBox _search = new();
         private readonly Button _btnSearch = new();
         private readonly ListBox _results = new() { ItemHeight = 34 };
+        private readonly ResultsPager _pager = new(410);
         private readonly Label _title = new();
         private readonly Label _desc = new();
         private readonly ComboBox _versions = new() { DropDownStyle = ComboBoxStyle.DropDownList };
@@ -42,7 +43,10 @@ namespace Velin.Forms
                 await SearchAsync();
             };
 
-            _results.SetBounds(12, 72, 410, 360);
+            _results.SetBounds(12, 72, 410, 330);
+            _pager.Location = new Point(12, 406);
+            _pager.PageRequested += async page => await SearchAsync(page);
+            Content.Controls.Add(_pager);
             _results.SelectedIndexChanged += async (s, e) => await OnSelectedAsync();
             _results.DoubleClick += (s, e) => { if (_results.SelectedItem is ContentProject p) ContentUi.OpenDetails(this, p); };
             Content.Controls.Add(_results);
@@ -88,20 +92,22 @@ namespace Velin.Forms
             public override string ToString() => Version.ToString();
         }
 
-        private async System.Threading.Tasks.Task SearchAsync()
+        private async System.Threading.Tasks.Task SearchAsync(int page = 0)
         {
             _status.Text = Localization.T("btn_search") + "...";
             _results.Items.Clear();
             ClearDetails();
+            _pager.SetBusy(true);
             var source = ContentUi.SourceOf(_source);
             try
             {
-                var hits = await ContentSources.SearchAsync(source, ContentType.ModPack, _search.Text, null);
+                var result = await ContentSources.SearchPageAsync(source, ContentType.ModPack, _search.Text, null, page);
                 if (source != ContentUi.SourceOf(_source)) return; // cambió de fuente mientras buscaba
-                foreach (var h in hits) _results.Items.Add(h);
-                _status.Text = Localization.T("results_count", hits.Count);
+                foreach (var h in result.Items) _results.Items.Add(h);
+                _pager.SetState(result);
+                _status.Text = Localization.T("results_count", Math.Max(result.Total, result.Items.Count));
             }
-            catch (Exception ex) { _status.Text = "Error: " + ex.Message; }
+            catch (Exception ex) { _pager.SetState(null); _status.Text = "Error: " + ex.Message; }
         }
 
         private void ClearDetails()
@@ -140,7 +146,7 @@ namespace Velin.Forms
         {
             if (_versions.SelectedItem is not VersionItem vi || _results.SelectedItem is not ContentProject item) return;
 
-            _install.Enabled = false; _versions.Enabled = false; _results.Enabled = false; _btnSearch.Enabled = false; _source.Enabled = false;
+            _install.Enabled = false; _versions.Enabled = false; _results.Enabled = false; _btnSearch.Enabled = false; _source.Enabled = false; _pager.Enabled = false;
             _progress.Visible = true; _progress.Value = 0;
             var warnings = new List<string>();
             try
@@ -166,7 +172,7 @@ namespace Velin.Forms
                 if (!IsDisposed)
                 {
                     _progress.Visible = false; _progress.Value = 0;
-                    _install.Enabled = true; _versions.Enabled = true; _results.Enabled = true; _btnSearch.Enabled = true; _source.Enabled = true;
+                    _install.Enabled = true; _versions.Enabled = true; _results.Enabled = true; _btnSearch.Enabled = true; _source.Enabled = true; _pager.Enabled = true;
                 }
             }
         }

@@ -15,6 +15,7 @@ namespace Velin.Services
         public static string AssetsDir => Path.Combine(DataDir, "assets");
         public static string CacheDir => Path.Combine(DataDir, "cache");
         public static string VaultDir => Path.Combine(DataDir, "vault");
+        public static string SkinsDir => Path.Combine(DataDir, "skins");
         public static string UserThemesDir => Path.Combine(DataDir, "themes");
         // Backups de mundos: fuera de la carpeta de la instancia, así sobreviven si se la elimina.
         public static string BackupsDir => Path.Combine(DataDir, "backups");

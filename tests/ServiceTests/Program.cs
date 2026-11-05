@@ -599,6 +599,57 @@ var v11Atomic = Path.Combine(tmp, "atomic", "a.json");
 AtomicFile.WriteAllText(v11Atomic, "uno"); AtomicFile.WriteAllText(v11Atomic, "dos");
 Check(File.ReadAllText(v11Atomic) == "dos" && Directory.GetFiles(Path.GetDirectoryName(v11Atomic)!, "*.tmp").Length == 0, "AtomicFile reemplaza el contenido y no deja temporales");
 
+Console.WriteLine("== v1.1.1: paginación, ícono alternativo y skins ==");
+Check(new ContentPage { Total = 0, PageSize = 30 }.TotalPages == 1, "ContentPage: sin resultados = 1 página");
+Check(new ContentPage { Total = 61, PageSize = 30 }.TotalPages == 3 && new ContentPage { Total = 60, PageSize = 30 }.TotalPages == 2, "ContentPage: cantidad de páginas");
+Check(new ContentPage { Total = 500000, PageSize = 30 }.TotalPages == 334, "ContentPage: tope de 10.000 resultados (CurseForge)");
+var v111P = new ContentPage { Total = 100, PageSize = 30, Page = 0 };
+Check(!v111P.HasPrevious && v111P.HasNext && !new ContentPage { Total = 100, PageSize = 30, Page = 3 }.HasNext && new ContentPage { Total = 100, PageSize = 30, Page = 3 }.HasPrevious, "ContentPage: anterior/siguiente");
+var v111Hits = System.Text.Json.JsonSerializer.Deserialize<ModrinthSearchResult>("{\"hits\":[],\"offset\":30,\"limit\":30,\"total_hits\":1234}")!;
+Check(v111Hits.TotalHits == 1234, "ModrinthSearchResult lee total_hits");
+var v111Cf = System.Text.Json.JsonSerializer.Deserialize<CfListResponse<CfMod>>("{\"data\":[],\"pagination\":{\"index\":30,\"pageSize\":30,\"resultCount\":0,\"totalCount\":777}}")!;
+Check(v111Cf.Pagination?.TotalCount == 777, "CfListResponse lee pagination.totalCount");
+
+var v111Mr = ProjectDetailsService.ParseModrinth("{\"id\":\"x\",\"slug\":\"s\",\"project_type\":\"mod\",\"title\":\"T\",\"icon_url\":\"https://cdn.modrinth.com/i.webp\",\"raw_icon_url\":\"https://cdn.modrinth.com/i.png\"}");
+Check(v111Mr.IconUrl.EndsWith("i.webp") && v111Mr.FallbackIconUrl.EndsWith("i.png"), "detalles de Modrinth: ícono alternativo (raw_icon_url)");
+var v111CfD = ProjectDetailsService.ParseCurseForge("{\"data\":{\"id\":1,\"name\":\"A\",\"logo\":{\"thumbnailUrl\":\"https://media.forgecdn.net/t.png\",\"url\":\"https://media.forgecdn.net/l.png\"}}}", "");
+Check(v111CfD.IconUrl.EndsWith("t.png") && v111CfD.FallbackIconUrl.EndsWith("l.png"), "detalles de CurseForge: ícono miniatura y original");
+
+byte[] V111Png(int w, int h, int extra = 0)
+{
+    var b = new List<byte> { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, (byte)'I', (byte)'H', (byte)'D', (byte)'R' };
+    b.AddRange(new[] { (byte)(w >> 24), (byte)(w >> 16), (byte)(w >> 8), (byte)w, (byte)(h >> 24), (byte)(h >> 16), (byte)(h >> 8), (byte)h });
+    b.AddRange(new byte[5 + extra]);
+    return b.ToArray();
+}
+Check(SkinLibrary.ValidatePng(V111Png(64, 64)) == null && SkinLibrary.ValidatePng(V111Png(64, 32)) == null, "SkinLibrary: 64x64 y 64x32 son válidos");
+Check(SkinLibrary.ValidatePng(V111Png(128, 128)) != null && SkinLibrary.ValidatePng(V111Png(32, 32)) != null, "SkinLibrary: otros tamaños se rechazan");
+Check(SkinLibrary.ValidatePng(new byte[] { 1, 2, 3 }) != null && SkinLibrary.ValidatePng(V111Png(64, 64, 200 * 1024)) != null, "SkinLibrary: no-PNG y archivos enormes se rechazan");
+
+var v111Dir = SkinLibrary.List(); // no debe fallar sin carpeta
+var v111Added = SkinLibrary.Add("  Mi skin  ", V111Png(64, 64), true);
+Check(v111Added.Name == "Mi skin" && v111Added.Slim && SkinLibrary.List().Any(e => e.Id == v111Added.Id), "SkinLibrary: agregar y listar");
+SkinLibrary.Update(v111Added.Id, name: "Otra", slim: false);
+var v111Again = SkinLibrary.List().First(e => e.Id == v111Added.Id);
+Check(v111Again.Name == "Otra" && !v111Again.Slim && SkinLibrary.ReadPng(v111Again) != null, "SkinLibrary: renombrar y cambiar modelo");
+SkinLibrary.Remove(v111Added.Id);
+Check(SkinLibrary.List().All(e => e.Id != v111Added.Id) && !File.Exists(SkinLibrary.FilePath(v111Added)), "SkinLibrary: eliminar borra la entrada y el archivo");
+bool v111Rejected = false;
+try { SkinLibrary.Add("x", new byte[] { 1, 2, 3 }, false); } catch (SkinException) { v111Rejected = true; }
+Check(v111Rejected, "SkinLibrary: Add rechaza archivos inválidos");
+Check(SkinLibrary.CustomSkinLoaderPath(@"C:\g", "Steve").EndsWith(Path.Combine("CustomSkinLoader", "LocalSkin", "skins", "Steve.png")), "ruta de CustomSkinLoader para cuentas offline");
+
+var v111Profile = MojangSkinService.ParseProfileSkin("{\"id\":\"a\",\"name\":\"n\",\"skins\":[{\"id\":\"1\",\"state\":\"INACTIVE\",\"url\":\"http://textures.minecraft.net/texture/old\",\"variant\":\"CLASSIC\"},{\"id\":\"2\",\"state\":\"ACTIVE\",\"url\":\"http://textures.minecraft.net/texture/new\",\"variant\":\"SLIM\"}]}");
+Check(v111Profile != null && v111Profile.Slim && v111Profile.Url.EndsWith("/new"), "perfil de Mojang: se toma la skin ACTIVE y su modelo");
+Check(MojangSkinService.ParseProfileSkin("{\"skins\":[]}") == null && MojangSkinService.ParseProfileSkin("no es json") == null, "perfil de Mojang sin skins o inválido = null");
+var v111Tex = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/abc\",\"metadata\":{\"model\":\"slim\"}}}}"));
+var v111Session = MojangSkinService.ParseSessionSkin("{\"id\":\"x\",\"properties\":[{\"name\":\"textures\",\"value\":\"" + v111Tex + "\"}]}");
+Check(v111Session != null && v111Session.Slim && v111Session.Url.EndsWith("/abc"), "sessionserver: skin y modelo desde 'textures'");
+var v111TexNoSkin = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("{\"textures\":{}}"));
+Check(MojangSkinService.ParseSessionSkin("{\"properties\":[{\"name\":\"textures\",\"value\":\"" + v111TexNoSkin + "\"}]}") == null, "sessionserver: sin SKIN = skin por defecto");
+Check(MojangSkinService.IsMojangTextureUrl("http://textures.minecraft.net/texture/abc") && !MojangSkinService.IsMojangTextureUrl("https://evil.example.com/texture/abc") && !MojangSkinService.IsMojangTextureUrl("file:///c:/x.png"), "solo se descargan skins de textures.minecraft.net");
+Check(MojangSkinService.NormalizeUuid("069A79F4-44E9-4726-A5BE-FCA90E38AAF5") == "069a79f444e94726a5befca90e38aaf5" && MojangSkinService.NormalizeUuid("xyz") == "" && MojangSkinService.NormalizeUuid(null) == "", "NormalizeUuid");
+
 Console.WriteLine($"\nRESULTADO: {total - fails}/{total} pruebas OK");
 Directory.Delete(tmp, true);
 if (PathService.DataDir.Contains("ServiceTests", StringComparison.OrdinalIgnoreCase) && Directory.Exists(PathService.DataDir))

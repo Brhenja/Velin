@@ -59,7 +59,7 @@ namespace Velin.Forms
             Content.Controls.Add(_links);
 
             _gallery.SetBounds(12, 122, 696, 190);
-            _gallery.Click += (s, e) => OpenCurrentImage();
+            _gallery.Click += async (s, e) => await OpenViewerAsync();
             _gallery.Visible = false;
             Content.Controls.Add(_gallery);
 
@@ -124,11 +124,13 @@ namespace Velin.Forms
                     await ShowGalleryAsync(0);
                 }
 
+                // Ícono: se prueba la URL principal y, si Windows no la puede mostrar (WebP/SVG), el original.
+                // Si no hay forma, se dibuja una letra en vez de dejar un cuadro negro.
+                Image? icon = null;
                 if (details.IconUrl.Length > 0)
-                {
-                    var icon = await ImageCache.LoadAsync(details.IconUrl, "", ct);
-                    if (icon != null && !IsDisposed) _icon.Image = icon; else icon?.Dispose();
-                }
+                    icon = await ImageCache.LoadAsync(details.IconUrl, details.FallbackIconUrl, ct);
+                if (IsDisposed) { icon?.Dispose(); return; }
+                _icon.Image = icon ?? MakePlaceholder(details.Title.Length > 0 ? details.Title : _title.Text);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
@@ -146,7 +148,9 @@ namespace Velin.Forms
             foreach (var link in d.Links)
             {
                 if (_links.Controls.Count >= 5) break;
-                var b = new Button { Text = link.Label, Width = 134, Height = 26, Margin = new Padding(0, 0, 6, 0), Tag = link.Url };
+                // El ancho se ajusta al texto ("Reportar problemas" se cortaba con un ancho fijo).
+                var width = Math.Max(90, TextRenderer.MeasureText(link.Label, Theme.UiFont(9f)).Width + 28);
+                var b = new Button { Text = link.Label, Width = width, Height = 26, Margin = new Padding(0, 0, 6, 0), Tag = link.Url };
                 b.Click += (s, e) => OpenUrl((string)((Button)s!).Tag!);
                 _links.Controls.Add(b);
             }
@@ -159,7 +163,8 @@ namespace Velin.Forms
             var count = _details.Gallery.Count;
             _galleryIndex = ((index % count) + count) % count;
             var item = _details.Gallery[_galleryIndex];
-            _counter.Text = item.Title.Length > 0 ? $"{_galleryIndex + 1} / {count}  —  {item.Title}" : $"{_galleryIndex + 1} / {count}";
+            var caption = item.Title.Length > 0 ? $"{_galleryIndex + 1} / {count}  —  {item.Title}" : $"{_galleryIndex + 1} / {count}";
+            _counter.Text = caption + "  ·  " + Localization.T("detail_click_enlarge");
 
             if (!_galleryImages.TryGetValue(_galleryIndex, out var img))
             {
@@ -174,10 +179,26 @@ namespace Velin.Forms
             _gallery.Image = img;
         }
 
-        private void OpenCurrentImage()
+        // Clic en la galería: visor con la imagen completa (sin recortes) y navegación.
+        private async Task OpenViewerAsync()
         {
             if (_details == null || _details.Gallery.Count == 0) return;
-            OpenUrl(_details.Gallery[_galleryIndex].Url);
+            using var viewer = new ImageViewerForm(_details.Gallery, _galleryIndex);
+            viewer.ShowDialog(this);
+            if (!IsDisposed) await ShowGalleryAsync(viewer.CurrentIndex);
+        }
+
+        // Cuadro con la inicial del proyecto (cuando el ícono no se pudo cargar).
+        private static Bitmap MakePlaceholder(string title)
+        {
+            var bmp = new Bitmap(64, 64);
+            using var g = Graphics.FromImage(bmp);
+            g.Clear(Theme.ControlBg);
+            var letter = (title.Trim().Length > 0 ? title.Trim().Substring(0, 1) : "?").ToUpperInvariant();
+            using var font = Theme.UiFont(26f, FontStyle.Bold);
+            TextRenderer.DrawText(g, letter, font, new Rectangle(0, 0, 64, 64), Theme.ControlText,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            return bmp;
         }
 
         private static void OpenUrl(string url)
