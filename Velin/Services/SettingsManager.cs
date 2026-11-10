@@ -7,6 +7,9 @@ namespace Velin.Services
     public static class SettingsManager
     {
         private static readonly object _lock = new();
+        // false la primera vez que se abre Velin (todavía no existe settings.json): se muestra el asistente de primer inicio.
+        public static bool Exists => File.Exists(FilePath);
+
         private static string FilePath => Path.Combine(PathService.DataDir, "settings.json");
 
         public static AppSettings Load()

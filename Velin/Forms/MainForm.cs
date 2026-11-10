@@ -43,8 +43,11 @@ namespace Velin.Forms
         private readonly Label _status = new();
         private readonly PictureBox _gifCorner = new() { SizeMode = PictureBoxSizeMode.Zoom };
 
-        public MainForm() : base(Localization.T("main_title"))
+        private readonly string? _autoPlay;   // --jugar "Instancia" (acceso directo)
+
+        public MainForm(string? autoPlayInstance = null) : base(Localization.T("main_title"))
         {
+            _autoPlay = autoPlayInstance;
             LockSize(660, 530);
             StartPosition = FormStartPosition.CenterScreen;
 
@@ -85,7 +88,7 @@ namespace Velin.Forms
 
             _btnImport.Text = Localization.T("btn_import");
             _btnImport.SetBounds(536, 12, 94, 32);
-            _btnImport.Click += async (s, e) => await ImportAsync();
+            _btnImport.Click += (s, e) => ShowImportMenu();
             Content.Controls.Add(_btnImport);
 
             _btnPlay.Text = Localization.T("btn_play");
@@ -165,6 +168,12 @@ namespace Velin.Forms
             _gifCorner.BringToFront();
 
             Load += (s, e) => { Reload(); UpdateGifVisibility(); };
+            // Después de abrir: jugar directo si vino de un acceso directo (--jugar) y, si no, buscar actualizaciones.
+            Shown += async (s, e) =>
+            {
+                if (_autoPlay != null) await AutoPlayAsync(_autoPlay);
+                else await CheckUpdatesOnStartAsync();
+            };
 
             Theme.Apply(this);
         }
@@ -190,6 +199,8 @@ namespace Velin.Forms
             Add("ctx_duplicate", () => _ = DuplicateAsync());
             Add("ctx_rename", RenameInstance);
             Add("ctx_export", () => _ = ExportAsync());
+            Add("ctx_shortcut", CreateShortcut);
+            Add("ctx_update_modpack", UpdateModpack);
             _menu.Items.Add(new ToolStripSeparator());
             Add("btn_delete", () => _ = DeleteInstanceAsync());
 
@@ -274,6 +285,77 @@ namespace Velin.Forms
             settings.GroupFilter = SelectedGroupFilter();
             SettingsManager.Save(settings);
             Reload();
+        }
+
+        // --jugar "Nombre": selecciona la instancia y arranca el juego como si se hubiera tocado Jugar.
+        private async Task AutoPlayAsync(string name)
+        {
+            SelectByName(name);
+            if (Selected == null || Selected.Name != name)
+            {
+                MessageBox.Show(this, Localization.T("autoplay_missing", name), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            await PlayAsync();
+        }
+
+        // Busca una versión nueva en GitHub (como mucho cada 12 horas) y muestra el aviso si la hay.
+        private async Task CheckUpdatesOnStartAsync()
+        {
+            try
+            {
+                var settings = SettingsManager.Load();
+                if (!settings.CheckUpdatesOnStart || DateTime.UtcNow - settings.LastUpdateCheckUtc < TimeSpan.FromHours(12)) return;
+
+                var info = await UpdateService.CheckAsync(AppInfo.Version);
+                var fresh = SettingsManager.Load();
+                fresh.LastUpdateCheckUtc = DateTime.UtcNow;
+                SettingsManager.Save(fresh);
+
+                if (info == null || IsDisposed) return;
+                if (string.Equals(fresh.SkippedUpdateVersion, info.Version.ToString(), StringComparison.Ordinal)) return;
+                using var form = new UpdateForm(info);
+                form.ShowDialog(this);
+            }
+            catch { /* sin red o GitHub caído: no se molesta al usuario al arrancar */ }
+        }
+
+        // Actualizar un modpack de Modrinth instalado desde Velin (conserva mundos y configuración).
+        private void UpdateModpack()
+        {
+            var inst = Selected;
+            if (inst == null) return;
+            if (!ModpackUpdater.CanUpdate(inst))
+            {
+                MessageBox.Show(this, Localization.T("mpu_not_available"), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            using var form = new ModpackUpdateForm(inst);
+            form.ShowDialog(this);
+            if (form.Updated) Reload();
+        }
+
+        // Acceso directo (.lnk) que abre Velin y juega esta instancia: en el escritorio o en el menú Inicio.
+        private void CreateShortcut()
+        {
+            var inst = Selected;
+            if (inst == null) return;
+            var answer = MessageBox.Show(this, Localization.T("shortcut_where", inst.Name), Localization.T("shortcut_where_title"),
+                MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (answer == DialogResult.Cancel) return;
+            try
+            {
+                var folder = answer == DialogResult.Yes
+                    ? Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory)
+                    : Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+                var exe = Environment.ProcessPath ?? Path.Combine(PathService.BaseDir, "Velin.exe");
+                var path = ShortcutService.Create(inst.Name, folder, exe);
+                MessageBox.Show(this, Localization.T("shortcut_done", path), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, Localization.T("shortcut_error", ex.Message), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void SelectByName(string name)
@@ -921,6 +1003,28 @@ namespace Velin.Forms
         }
 
         // Importa un .mrpack (modpack de Modrinth) o un .zip exportado por Velin.
+        // "Importar...": desde un archivo (.zip / .mrpack) o desde otro launcher.
+        private void ShowImportMenu()
+        {
+            var menu = new ContextMenuStrip();
+            var fromFile = new ToolStripMenuItem(Localization.T("imp_menu_file"));
+            fromFile.Click += async (s, e) => await ImportAsync();
+            var fromLauncher = new ToolStripMenuItem(Localization.T("imp_menu_launcher"));
+            fromLauncher.Click += (s, e) => ImportFromLauncher();
+            menu.Items.Add(fromFile);
+            menu.Items.Add(fromLauncher);
+            Theme.StyleMenu(menu);
+            menu.Show(_btnImport, new System.Drawing.Point(0, _btnImport.Height));
+        }
+
+        private void ImportFromLauncher()
+        {
+            using var form = new ImportLaunchersForm();
+            form.ShowDialog(this);
+            Reload();
+            if (!string.IsNullOrEmpty(form.LastImportedName)) SelectByName(form.LastImportedName!);
+        }
+
         private async Task ImportAsync()
         {
             using var ofd = new OpenFileDialog { Filter = Localization.T("import_filter") };

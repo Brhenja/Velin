@@ -19,6 +19,28 @@ namespace Velin.Services
         public static ContentSource ParseSource(string? key) =>
             string.Equals(key, "curseforge", StringComparison.OrdinalIgnoreCase) ? ContentSource.CurseForge : ContentSource.Modrinth;
 
+        private static string? Blank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+        // Loader elegido en el filtro (null = cualquiera). "Vanilla" no es un loader: se trata como cualquiera.
+        private static string? LoaderName(ModLoaderType? l) => l is null or ModLoaderType.Vanilla ? null : ModManager.LoaderCategoryName(l.Value);
+
+        public static string ModrinthSortIndex(ContentSort s) => s switch
+        {
+            ContentSort.Downloads => "downloads",
+            ContentSort.Newest => "newest",
+            ContentSort.Updated => "updated",
+            _ => "relevance"
+        };
+
+        // Campos de orden de CurseForge: 2 popularidad, 3 última actualización, 6 descargas totales, 11 fecha de lanzamiento.
+        public static int CurseForgeSortField(ContentSort s) => s switch
+        {
+            ContentSort.Downloads => 6,
+            ContentSort.Newest => 11,
+            ContentSort.Updated => 3,
+            _ => 2
+        };
+
         public static int CurseForgeClass(ContentType t) => t switch
         {
             ContentType.Mod => CurseForgeService.ClassMods,
@@ -56,7 +78,7 @@ namespace Velin.Services
             (await SearchPageAsync(source, type, query, instance, 0)).Items;
 
         // Una página de resultados (page desde 0) con el total que informa la fuente.
-        public static async Task<ContentPage> SearchPageAsync(ContentSource source, ContentType type, string query, Instance? instance, int page)
+        public static async Task<ContentPage> SearchPageAsync(ContentSource source, ContentType type, string query, Instance? instance, int page, ContentFilter? filter = null)
         {
             if (type != ContentType.ModPack && instance == null) throw new ArgumentNullException(nameof(instance));
             page = Math.Max(0, page);
@@ -66,9 +88,9 @@ namespace Velin.Services
             if (source == ContentSource.Modrinth)
             {
                 var found = await MrApi.SearchPageAsync(query, ModrinthType(type),
-                    type == ContentType.ModPack ? null : instance!.McVersion,
-                    type == ContentType.Mod ? ModManager.LoaderCategoryName(instance!.Loader) : null,
-                    page * PageSize, PageSize);
+                    filter != null ? Blank(filter.McVersion) : (type == ContentType.ModPack ? null : instance!.McVersion),
+                    filter != null ? LoaderName(filter.Loader) : (type == ContentType.Mod ? ModManager.LoaderCategoryName(instance!.Loader) : null),
+                    page * PageSize, PageSize, ModrinthSortIndex(filter?.Sort ?? ContentSort.Relevance), Blank(filter?.CategoryId));
                 result.Total = found.TotalHits;
                 result.Items = found.Hits.Select(h => new ContentProject
                 {
@@ -81,10 +103,11 @@ namespace Velin.Services
             var cf = CurseForgeApi.FromSettings();
             // CurseForge no permite pasar de index + pageSize = 10.000.
             var index = Math.Min(page * PageSize, Math.Max(0, ContentPage.MaxReachable - PageSize));
+            int.TryParse(filter?.CategoryId, out var categoryId);
             var (mods, total) = await cf.SearchPageAsync(CurseForgeClass(type), query,
-                type == ContentType.ModPack ? null : instance!.McVersion,
-                type == ContentType.Mod ? CurseForgeService.LoaderId(instance!.Loader) : 0,
-                index, PageSize);
+                filter != null ? Blank(filter.McVersion) : (type == ContentType.ModPack ? null : instance!.McVersion),
+                filter != null ? (filter.Loader is { } fl ? CurseForgeService.LoaderId(fl) : 0) : (type == ContentType.Mod ? CurseForgeService.LoaderId(instance!.Loader) : 0),
+                index, PageSize, CurseForgeSortField(filter?.Sort ?? ContentSort.Relevance), categoryId);
             result.Total = total;
             result.Items = mods.Select(m => new ContentProject
             {
@@ -203,9 +226,34 @@ namespace Velin.Services
             {
                 progress?.Report($"Descargando {version.Name}...");
                 await DownloadAsync(version, zipPath);
-                return version.Source == ContentSource.Modrinth
+                var instance = version.Source == ContentSource.Modrinth
                     ? await ModpackImporter.ImportMrpackAsync(zipPath, progress, percent, onWarning)
                     : await CurseForgeService.ImportModpackAsync(zipPath, CurseForgeApi.FromSettings(), progress, percent, onWarning);
+
+                // Se recuerda de dónde vino para poder actualizarlo después.
+                instance.ModpackSource = version.Source == ContentSource.Modrinth ? "modrinth" : "curseforge";
+                instance.ModpackProjectId = version.ProjectId;
+                instance.ModpackVersionId = version.Id;
+                instance.ModpackVersionName = version.Name;
+                instance.Save();
+                return instance;
+            }
+            finally { try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { } }
+        }
+
+        // Baja la versión elegida de un modpack de Modrinth y la aplica SOBRE la instancia existente
+        // (mundos, configuración y mods propios se conservan). Ver ModpackUpdater.
+        public static async Task UpdateModpackAsync(Instance instance, ContentVersion version, IProgress<string>? progress,
+            IProgress<double>? percent, Action<string>? onWarning)
+        {
+            var cache = Path.Combine(PathService.CacheDir, "modpacks");
+            Directory.CreateDirectory(cache);
+            var zipPath = Path.Combine(cache, ContentService.SafeFileName(version.FileName));
+            try
+            {
+                progress?.Report($"Descargando {version.Name}...");
+                await DownloadAsync(version, zipPath);
+                await ModpackUpdater.ApplyMrpackAsync(instance, zipPath, version, progress, percent, onWarning);
             }
             finally { try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { } }
         }

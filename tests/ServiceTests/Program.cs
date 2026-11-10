@@ -650,6 +650,153 @@ Check(MojangSkinService.ParseSessionSkin("{\"properties\":[{\"name\":\"textures\
 Check(MojangSkinService.IsMojangTextureUrl("http://textures.minecraft.net/texture/abc") && !MojangSkinService.IsMojangTextureUrl("https://evil.example.com/texture/abc") && !MojangSkinService.IsMojangTextureUrl("file:///c:/x.png"), "solo se descargan skins de textures.minecraft.net");
 Check(MojangSkinService.NormalizeUuid("069A79F4-44E9-4726-A5BE-FCA90E38AAF5") == "069a79f444e94726a5befca90e38aaf5" && MojangSkinService.NormalizeUuid("xyz") == "" && MojangSkinService.NormalizeUuid(null) == "", "NormalizeUuid");
 
+Console.WriteLine("== v1.2.0: aviso de actualización, acceso directo, idiomas, filtros, importadores y actualización de modpacks ==");
+// --- UpdateService
+Check(UpdateService.TryParseVersion("v1.2.0", out var v120) && v120 == new Version(1, 2, 0) && UpdateService.TryParseVersion("1.3", out var v13) && v13 == new Version(1, 3, 0), "UpdateService: interpreta v1.2.0 y 1.3");
+Check(UpdateService.TryParseVersion("1.4.0-beta.1", out var v140) && v140 == new Version(1, 4, 0) && !UpdateService.TryParseVersion("hola", out _) && !UpdateService.TryParseVersion("", out _), "UpdateService: sufijos y textos inválidos");
+Check(UpdateService.IsNewer("v1.2.0", "1.1.1") && !UpdateService.IsNewer("v1.1.1", "1.1.1") && !UpdateService.IsNewer("v1.0.9", "1.1.1") && UpdateService.IsNewer("v1.10.0", "1.9.9"), "UpdateService: comparación de versiones");
+var v120Release = UpdateService.ParseRelease("{\"tag_name\":\"v1.2.0\",\"html_url\":\"https://github.com/Brhenja/Velin/releases/tag/v1.2.0\",\"body\":\"Notas\",\"assets\":[" +
+    "{\"name\":\"Velin-1.2.0-portable-win-x64.zip\",\"browser_download_url\":\"https://github.com/Brhenja/Velin/releases/download/v1.2.0/Velin-1.2.0-portable-win-x64.zip\",\"size\":10}," +
+    "{\"name\":\"VelinSetup-1.2.0.exe\",\"browser_download_url\":\"https://github.com/Brhenja/Velin/releases/download/v1.2.0/VelinSetup-1.2.0.exe\",\"size\":1234,\"digest\":\"sha256:ABCDEF\"}," +
+    "{\"name\":\"SHA256SUMS.txt\",\"browser_download_url\":\"https://github.com/Brhenja/Velin/releases/download/v1.2.0/SHA256SUMS.txt\",\"size\":5}]}");
+Check(v120Release != null && v120Release.InstallerName == "VelinSetup-1.2.0.exe" && v120Release.InstallerSize == 1234 && v120Release.Sha256 == "ABCDEF" && v120Release.Notes == "Notas", "UpdateService: elige el instalador (no el portable) y su hash");
+var v120NoDigest = UpdateService.ParseRelease("{\"tag_name\":\"v1.2.0\",\"assets\":[{\"name\":\"VelinSetup-1.2.0.exe\",\"browser_download_url\":\"https://github.com/Brhenja/Velin/releases/download/v1.2.0/VelinSetup-1.2.0.exe\"},{\"name\":\"SHA256SUMS.txt\",\"browser_download_url\":\"https://github.com/Brhenja/Velin/releases/download/v1.2.0/SHA256SUMS.txt\"}]}");
+Check(v120NoDigest != null && v120NoDigest.Sha256.StartsWith("@https://") && v120NoDigest.PageUrl.StartsWith("https://github.com/Brhenja/Velin"), "UpdateService: sin digest se usa SHA256SUMS.txt y hay página por defecto");
+Check(UpdateService.ParseRelease("{\"tag_name\":\"nightly\"}") == null, "UpdateService: tag sin versión = null");
+Check(UpdateService.IsTrustedDownloadUrl("https://github.com/Brhenja/Velin/releases/download/v1.2.0/VelinSetup-1.2.0.exe")
+      && !UpdateService.IsTrustedDownloadUrl("https://evil.example.com/Brhenja/Velin/releases/download/v1/x.exe")
+      && !UpdateService.IsTrustedDownloadUrl("http://github.com/Brhenja/Velin/releases/download/v1/x.exe")
+      && !UpdateService.IsTrustedDownloadUrl("https://github.com/Otro/Repo/releases/download/v1/x.exe"), "UpdateService: solo descarga de las releases de este repo");
+Check(UpdateService.FindHash("AAAA" + new string('0', 60) + "  VelinSetup-1.2.0.exe\r\n" + new string('b', 64) + " *Otro.zip\n", "VelinSetup-1.2.0.exe") == "AAAA" + new string('0', 60)
+      && UpdateService.FindHash(new string('b', 64) + " *Otro.zip", "Otro.zip") == new string('b', 64) && UpdateService.FindHash("nada", "x") == "", "UpdateService: lee SHA256SUMS.txt");
+
+// --- ShortcutService
+Check(ShortcutService.ParsePlayArgument(new[] { "--jugar", "Mi instancia" }) == "Mi instancia" && ShortcutService.ParsePlayArgument(new[] { "--PLAY", "X" }) == "X"
+      && ShortcutService.ParsePlayArgument(new[] { "--jugar" }) == null && ShortcutService.ParsePlayArgument(Array.Empty<string>()) == null, "ShortcutService: argumento --jugar");
+Check(ShortcutService.BuildArguments("Mi \"super\" instancia") == "--jugar \"Mi super instancia\"" && ShortcutService.SafeFileName("a:b/c*d") == "abcd" && ShortcutService.SafeFileName("???") == "Velin", "ShortcutService: argumentos y nombre de archivo seguros");
+
+// --- Idiomas
+var v120LangRoot = Path.Combine(tmp, "langs");
+var v120Built = Path.Combine(v120LangRoot, "built"); var v120User = Path.Combine(v120LangRoot, "user");
+Directory.CreateDirectory(v120Built); Directory.CreateDirectory(v120User);
+File.WriteAllText(Path.Combine(v120Built, "es.json"), "{\"lang.name\":\"Español\",\"a\":\"uno\",\"b\":\"dos\"}");
+File.WriteAllText(Path.Combine(v120Built, "en.json"), "{\"lang.name\":\"English\",\"a\":\"one\",\"b\":\"two\"}");
+File.WriteAllText(Path.Combine(v120Built, "pt-BR.json"), "{\"lang.name\":\"Português (Brasil)\",\"a\":\"um\", /* comentario */ \"n\":5,}");
+File.WriteAllText(Path.Combine(v120Built, "roto.json"), "{ esto no es json");
+File.WriteAllText(Path.Combine(v120User, "xx.json"), "{\"lang.name\":\"Klingon\",\"a\":\"Qa\"}");
+File.WriteAllText(Path.Combine(v120User, "en.json"), "{\"a\":\"ONE\"}");
+var v120Langs = LanguageCatalog.Available(v120Built, v120User);
+Check(v120Langs.Select(l => l.Code).SequenceEqual(new[] { "es", "en", "xx", "pt-BR" }), "LanguageCatalog: español e inglés primero, luego el resto; ignora archivos rotos");
+Check(v120Langs.First(l => l.Code == "pt-BR").Name == "Português (Brasil)" && v120Langs.First(l => l.Code == "xx").Name == "Klingon", "LanguageCatalog: nombre desde lang.name (también idiomas del usuario)");
+var v120En = LanguageCatalog.LoadStrings("en", v120Built, v120User);
+Check(v120En["a"] == "ONE" && v120En["b"] == "two", "LanguageCatalog: data\\lang pisa sólo los textos que define");
+var v120Pt = LanguageCatalog.LoadStrings("pt-BR", v120Built, v120User);
+Check(v120Pt["a"] == "um" && !v120Pt.ContainsKey("n") && LanguageCatalog.LoadStrings("zz", v120Built, v120User).Count == 0, "LanguageCatalog: tolera comas finales/comentarios, ignora valores que no son texto, idioma inexistente = vacío");
+Check(!LanguageCatalog.NeedsSystemFont("es") && !LanguageCatalog.NeedsSystemFont("pt-BR") && LanguageCatalog.NeedsSystemFont("ru") && LanguageCatalog.NeedsSystemFont("ja") && LanguageCatalog.NeedsSystemFont("pl") && LanguageCatalog.NeedsSystemFont("xx"), "LanguageCatalog: fuente normal para alfabetos que las fuentes medievales no cubren");
+var v120All = new List<LanguageInfo> { new() { Code = "es" }, new() { Code = "en" }, new() { Code = "pt-BR" }, new() { Code = "zh-CN" }, new() { Code = "de" } };
+Check(LanguageCatalog.Detect(new System.Globalization.CultureInfo("pt-PT"), v120All) == "pt-BR" && LanguageCatalog.Detect(new System.Globalization.CultureInfo("zh-Hans-CN"), v120All) == "zh-CN"
+      && LanguageCatalog.Detect(new System.Globalization.CultureInfo("es-AR"), v120All) == "es" && LanguageCatalog.Detect(new System.Globalization.CultureInfo("de-AT"), v120All) == "de"
+      && LanguageCatalog.Detect(new System.Globalization.CultureInfo("ja-JP"), v120All) == "en", "LanguageCatalog.Detect: pt→pt-BR, zh→zh-CN, es-AR→es y por defecto inglés");
+
+// Los idiomas que trae Velin: mismas claves que el español y los mismos {0},{1}... en cada texto.
+string? v120Repo = AppContext.BaseDirectory;
+while (v120Repo != null && !File.Exists(Path.Combine(v120Repo, "Velin.sln"))) v120Repo = Path.GetDirectoryName(v120Repo);
+if (v120Repo == null) Check(false, "no se encontró la carpeta del repositorio para revisar los idiomas");
+else
+{
+    var langDir = Path.Combine(v120Repo, "Velin", "Assets", "Lang");
+    var v120Es = LanguageCatalog.LoadStrings("es", langDir, Path.Combine(tmp, "nouser"));
+    var placeholder = new System.Text.RegularExpressions.Regex(@"\{(\d+)\}");
+    string Ph(string t) => string.Join(",", placeholder.Matches(t).Select(m => m.Groups[1].Value).Distinct().OrderBy(x => x));
+    var langFiles = Directory.GetFiles(langDir, "*.json");
+    Check(langFiles.Length >= 13 && v120Es.Count > 350, $"Assets\\Lang: {langFiles.Length} idiomas, {v120Es.Count} textos en español");
+    foreach (var file in langFiles.OrderBy(f => f))
+    {
+        var code = Path.GetFileNameWithoutExtension(file);
+        var strings = LanguageCatalog.LoadStrings(code, langDir, Path.Combine(tmp, "nouser"));
+        var extra = strings.Keys.Where(k => !v120Es.ContainsKey(k)).ToList();
+        var badPlaceholders = strings.Where(kv => v120Es.TryGetValue(kv.Key, out var es) && Ph(es) != Ph(kv.Value)).Select(kv => kv.Key).ToList();
+        var empty = strings.Where(kv => kv.Value.Trim().Length == 0).Select(kv => kv.Key).ToList();
+        var missing = v120Es.Keys.Count(k => !strings.ContainsKey(k));
+        Check(extra.Count == 0 && badPlaceholders.Count == 0 && empty.Count == 0 && strings.ContainsKey("lang.name"),
+            $"idioma {code}: {strings.Count} textos, faltan {missing} (usan inglés)" +
+            (extra.Count > 0 ? " | claves que no existen: " + string.Join(",", extra.Take(3)) : "") +
+            (badPlaceholders.Count > 0 ? " | {n} distintos en: " + string.Join(",", badPlaceholders.Take(3)) : "") +
+            (empty.Count > 0 ? " | vacíos: " + string.Join(",", empty.Take(3)) : ""));
+    }
+}
+
+// Fuentes para los idiomas que la fuente por defecto no resuelve bien
+Check(LanguageCatalog.CjkFontNames("ko")[0] == "Malgun Gothic" && LanguageCatalog.CjkFontNames("ja")[0] == "Yu Gothic UI" && LanguageCatalog.CjkFontNames("zh-CN")[0] == "Microsoft YaHei UI"
+      && LanguageCatalog.CjkFontNames("es").Length == 0 && LanguageCatalog.CjkFontNames("ru").Length == 0 && LanguageCatalog.CjkFontNames("pt-BR").Length == 0, "LanguageCatalog: fuente propia para coreano, japonés y chino (el resto no la necesita)");
+
+// --- Filtros del buscador
+Check(ContentSources.ModrinthSortIndex(ContentSort.Relevance) == "relevance" && ContentSources.ModrinthSortIndex(ContentSort.Downloads) == "downloads"
+      && ContentSources.ModrinthSortIndex(ContentSort.Newest) == "newest" && ContentSources.ModrinthSortIndex(ContentSort.Updated) == "updated", "ContentSources: orden de Modrinth");
+Check(ContentSources.CurseForgeSortField(ContentSort.Relevance) == 2 && ContentSources.CurseForgeSortField(ContentSort.Downloads) == 6
+      && ContentSources.CurseForgeSortField(ContentSort.Newest) == 11 && ContentSources.CurseForgeSortField(ContentSort.Updated) == 3, "ContentSources: orden de CurseForge");
+var v120MrCats = ContentCatalog.ParseModrinthCategories("[{\"name\":\"adventure\",\"project_type\":\"mod\",\"header\":\"categories\"},{\"name\":\"fabric\",\"project_type\":\"mod\",\"header\":\"loaders\"},{\"name\":\"game-mechanics\",\"project_type\":\"mod\",\"header\":\"categories\"},{\"name\":\"16x\",\"project_type\":\"resourcepack\",\"header\":\"resolutions\"}]", "mod");
+Check(v120MrCats.Count == 2 && v120MrCats[0].Id == "adventure" && v120MrCats[1].Name == "Game mechanics", "ContentCatalog: categorías de Modrinth (sin loaders, por tipo, nombre legible)");
+var v120CfCats = ContentCatalog.ParseCurseForgeCategories("{\"data\":[{\"id\":406,\"name\":\"World Gen\",\"classId\":6,\"isClass\":false,\"parentCategoryId\":6},{\"id\":6,\"name\":\"Mods\",\"classId\":0,\"isClass\":true,\"parentCategoryId\":432},{\"id\":999,\"name\":\"Hondo\",\"classId\":6,\"isClass\":false,\"parentCategoryId\":406},{\"id\":12,\"name\":\"Otra clase\",\"classId\":12,\"isClass\":false,\"parentCategoryId\":12}]}", 6);
+Check(v120CfCats.Count == 1 && v120CfCats[0].Id == "406" && v120CfCats[0].Name == "World Gen", "ContentCatalog: categorías de CurseForge (sólo primer nivel de esa clase)");
+
+// --- Actualizar modpacks
+Check(ModpackUpdater.IsManagedPath("mods/a.jar") && ModpackUpdater.IsManagedPath("resourcepacks\\x.zip") && ModpackUpdater.IsManagedPath("shaderpacks/s.zip")
+      && !ModpackUpdater.IsManagedPath("config/a.toml") && !ModpackUpdater.IsManagedPath("saves/mundo/level.dat") && !ModpackUpdater.IsManagedPath("options.txt"), "ModpackUpdater: sólo mods/resourcepacks/shaderpacks se administran");
+var v120Removed = ModpackUpdater.FindRemoved(new[] { "mods/a.jar", "mods/b.jar", "config/a.toml", "mods/c.jar" }, new[] { "mods/B.JAR", "mods/d.jar" });
+Check(v120Removed.SequenceEqual(new[] { "mods/a.jar", "mods/c.jar" }), "ModpackUpdater: retira lo que el pack nuevo ya no trae (sin tocar config)");
+var v120Root = Path.GetFullPath(Path.Combine(tmp, "gameroot")).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+Check(ModpackUpdater.SafeCombine(v120Root, "mods/a.jar") != null && ModpackUpdater.SafeCombine(v120Root, "../fuera.txt") == null && ModpackUpdater.SafeCombine(v120Root, "mods/../../x") == null, "ModpackUpdater: no permite salirse de la carpeta del juego");
+var v120Upd = new Instance { Name = "ModpackTest-" + Guid.NewGuid().ToString("N").Substring(0, 6), ModpackSource = "modrinth", ModpackProjectId = "abc" };
+Check(!ModpackUpdater.CanUpdate(v120Upd), "ModpackUpdater: sin lista de archivos no se puede actualizar");
+Directory.CreateDirectory(v120Upd.InstanceDir);
+ModpackImporter.WriteFileList(v120Upd, new List<string> { "mods/a.jar" });
+Check(ModpackUpdater.CanUpdate(v120Upd) && ModpackImporter.ReadFileList(v120Upd)!.SequenceEqual(new[] { "mods/a.jar" }), "ModpackUpdater: con lista de archivos sí se puede actualizar");
+try { Directory.Delete(v120Upd.InstanceDir, true); } catch { }
+Check(new Instance().ModpackSource == "" && JsonSerializer.Deserialize<Instance>("{\"Name\":\"Y\"}")!.ModpackProjectId == "", "Instance: campos de modpack vacíos por defecto (instance.json viejo se lee igual)");
+
+// --- Importadores de otros launchers
+var v120Prism = LauncherImporter.ParsePrism("[General]\nname=Mi Pack\nMaxMemAlloc=6144\nInstanceType=OneSix\n",
+    "{\"components\":[{\"uid\":\"net.minecraft\",\"version\":\"1.20.1\"},{\"uid\":\"net.fabricmc.fabric-loader\",\"version\":\"0.15.7\"}],\"formatVersion\":1}", "carpeta");
+Check(v120Prism != null && v120Prism.Name == "Mi Pack" && v120Prism.McVersion == "1.20.1" && v120Prism.Loader == ModLoaderType.Fabric && v120Prism.LoaderVersion == "0.15.7" && v120Prism.RamMB == 6144, "Importador Prism: nombre, versión, Fabric y RAM");
+var v120PrismForge = LauncherImporter.ParsePrism("name=Viejo", "{\"components\":[{\"uid\":\"net.minecraft\",\"version\":\"1.12.2\"},{\"uid\":\"net.minecraftforge\",\"version\":\"1.12.2-14.23.5.2860\"}]}", "x");
+Check(v120PrismForge != null && v120PrismForge.Loader == ModLoaderType.Forge && v120PrismForge.LoaderVersion == "14.23.5.2860" && v120PrismForge.RamMB == 0, "Importador Prism: Forge sin prefijo de Minecraft");
+Check(LauncherImporter.ParsePrism("name=x", "{\"components\":[]}", "x") == null && LauncherImporter.ParsePrism("", "{\"components\":[{\"uid\":\"net.minecraft\",\"version\":\"1.19\"}]}", "Carpeta")!.Name == "Carpeta", "Importador Prism: sin Minecraft = null; sin nombre usa la carpeta");
+var v120Cf = LauncherImporter.ParseCurseForge("{\"name\":\"All the Mods\",\"gameVersion\":\"1.19.2\",\"baseModLoader\":{\"name\":\"forge-43.2.14\"}}", "f");
+Check(v120Cf != null && v120Cf.Loader == ModLoaderType.Forge && v120Cf.LoaderVersion == "43.2.14" && v120Cf.Name == "All the Mods", "Importador CurseForge: Forge");
+var v120CfFabric = LauncherImporter.ParseCurseForge("{\"gameVersion\":\"1.19.2\",\"baseModLoader\":{\"name\":\"fabric-0.14.21-1.19.2\"}}", "Carpeta");
+Check(v120CfFabric != null && v120CfFabric.Loader == ModLoaderType.Fabric && v120CfFabric.LoaderVersion == "0.14.21" && v120CfFabric.Name == "Carpeta" && LauncherImporter.ParseCurseForge("{\"gameVersion\":\"1.16.5\"}", "x")!.Loader == ModLoaderType.Vanilla, "Importador CurseForge: Fabric sin sufijo, vanilla sin loader");
+Check(LauncherImporter.ParseVersionId("1.20.1")!.Value.Loader == ModLoaderType.Vanilla
+      && LauncherImporter.ParseVersionId("fabric-loader-0.15.7-1.20.1")!.Value is { Mc: "1.20.1", Loader: ModLoaderType.Fabric, LoaderVersion: "0.15.7" }
+      && LauncherImporter.ParseVersionId("quilt-loader-0.23.0-1.20.1")!.Value.Loader == ModLoaderType.Quilt
+      && LauncherImporter.ParseVersionId("1.20.1-forge-47.2.0")!.Value is { Mc: "1.20.1", Loader: ModLoaderType.Forge, LoaderVersion: "47.2.0" }
+      && LauncherImporter.ParseVersionId("1.12.2-forge1.12.2-14.23.5.2860")!.Value.LoaderVersion == "14.23.5.2860", "Importador Minecraft: ids de versión (vanilla, Fabric, Quilt, Forge)");
+Check(LauncherImporter.ParseVersionId("neoforge-20.4.237")!.Value is { Mc: "1.20.4", Loader: ModLoaderType.NeoForge } && LauncherImporter.ParseVersionId("neoforge-21.0.50")!.Value.Mc == "1.21"
+      && LauncherImporter.ParseVersionId("neoforge-21.1.5")!.Value.Mc == "1.21.1" && LauncherImporter.ParseVersionId("neoforge-47.1.106")!.Value.Mc == "1.20.1"
+      && LauncherImporter.ParseVersionId("latest-release") == null && LauncherImporter.ParseVersionId("") == null, "Importador Minecraft: NeoForge deduce la versión; latest-release se omite");
+var v120Official = LauncherImporter.ParseOfficialProfiles("{\"profiles\":{\"a\":{\"name\":\"Mi Fabric\",\"lastVersionId\":\"fabric-loader-0.15.7-1.20.1\"},\"b\":{\"type\":\"latest-release\",\"lastVersionId\":\"latest-release\"},\"c\":{\"lastVersionId\":\"1.8.9\"}}}", tmp);
+Check(v120Official.Count == 2 && v120Official[0].Name == "Mi Fabric" && v120Official[1].Name == "1.8.9" && v120Official.All(c => c.Launcher == LauncherKind.Minecraft), "Importador Minecraft: perfiles (omite latest-release, usa la versión como nombre)");
+var v120Opt = new ImportOptions();
+Check(!LauncherImporter.ShouldCopy("logs", false, v120Opt) && !LauncherImporter.ShouldCopy("crash-reports", true, v120Opt) && LauncherImporter.ShouldCopy("saves", false, v120Opt) && LauncherImporter.ShouldCopy("mods", true, v120Opt)
+      && !LauncherImporter.ShouldCopy("saves", false, new ImportOptions { Worlds = false }) && !LauncherImporter.ShouldCopy("config", false, new ImportOptions { Mods = false })
+      && !LauncherImporter.ShouldCopy("versions", true, v120Opt) && !LauncherImporter.ShouldCopy("libraries", true, v120Opt) && LauncherImporter.ShouldCopy("versions", false, v120Opt) == true
+      && LauncherImporter.ShouldCopy("options.txt", true, v120Opt) && !LauncherImporter.ShouldCopy("options.txt", true, new ImportOptions { Other = false }), "Importadores: qué carpetas se copian según las opciones");
+
+// Importación real de una carpeta (Prism) a una instancia nueva de Velin
+var v120Src = Path.Combine(tmp, "prism-inst");
+Directory.CreateDirectory(Path.Combine(v120Src, "minecraft", "saves", "Mundo")); Directory.CreateDirectory(Path.Combine(v120Src, "minecraft", "mods")); Directory.CreateDirectory(Path.Combine(v120Src, "minecraft", "logs"));
+File.WriteAllText(Path.Combine(v120Src, "instance.cfg"), "name=Importada de prueba " + Guid.NewGuid().ToString("N").Substring(0, 6) + "\nMaxMemAlloc=3000\n");
+File.WriteAllText(Path.Combine(v120Src, "mmc-pack.json"), "{\"components\":[{\"uid\":\"net.minecraft\",\"version\":\"1.20.1\"}]}");
+File.WriteAllText(Path.Combine(v120Src, "minecraft", "saves", "Mundo", "level.dat"), "x"); File.WriteAllText(Path.Combine(v120Src, "minecraft", "mods", "a.jar"), "y");
+File.WriteAllText(Path.Combine(v120Src, "minecraft", "logs", "latest.log"), "z"); File.WriteAllText(Path.Combine(v120Src, "minecraft", "options.txt"), "fov:70");
+var v120Found = LauncherImporter.ScanFolder(tmp).Where(c => c.Name.StartsWith("Importada de prueba")).ToList();
+Check(v120Found.Count == 1 && v120Found[0].Launcher == LauncherKind.Prism && v120Found[0].RamMB == 3000, "Importador: ScanFolder encuentra la instancia de Prism");
+var v120Imp = await LauncherImporter.ImportAsync(v120Found[0], new ImportOptions { Worlds = true, Mods = false, Other = true }, null, null);
+Check(File.Exists(Path.Combine(v120Imp.GameDir, "saves", "Mundo", "level.dat")) && !Directory.Exists(Path.Combine(v120Imp.GameDir, "mods", "a.jar")) && !File.Exists(Path.Combine(v120Imp.GameDir, "mods", "a.jar"))
+      && !Directory.Exists(Path.Combine(v120Imp.GameDir, "logs")) && File.Exists(Path.Combine(v120Imp.GameDir, "options.txt")) && v120Imp.McVersion == "1.20.1" && v120Imp.RamMB == 3000 && File.Exists(v120Imp.ConfigFile),
+      "Importador: copia mundos y opciones, omite mods (según opciones) y logs, y crea la instancia");
+try { Directory.Delete(v120Imp.InstanceDir, true); } catch { }
+
 Console.WriteLine($"\nRESULTADO: {total - fails}/{total} pruebas OK");
 Directory.Delete(tmp, true);
 if (PathService.DataDir.Contains("ServiceTests", StringComparison.OrdinalIgnoreCase) && Directory.Exists(PathService.DataDir))

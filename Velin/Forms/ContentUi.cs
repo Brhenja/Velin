@@ -50,7 +50,7 @@ namespace Velin.Forms
                 Text = HintText(preferCurse ? ContentSource.CurseForge : ContentSource.Modrinth),
                 AutoSize = true,
                 Location = new Point(12, 50),
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Italic)
+                Font = Theme.PlainFont(8.5f, FontStyle.Italic)
             };
             content.Controls.Add(hint);
             return hint;

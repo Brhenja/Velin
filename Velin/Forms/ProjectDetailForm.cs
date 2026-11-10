@@ -72,7 +72,7 @@ namespace Velin.Forms
 
             _body.Font = Theme.UiFont(9.5f);
             _body.SetBounds(12, 122, 696, 426);
-            _body.LinkClicked += (s, e) => OpenUrl(e.LinkText);
+            _body.LinkClicked += (s, e) => OpenUrl(e.LinkText ?? "");
             Content.Controls.Add(_body);
 
             var close = new Button { Text = Localization.T("btn_close") };

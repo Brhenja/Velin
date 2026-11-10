@@ -60,13 +60,13 @@ namespace Velin.Forms
 
             var hintDefault = new Label { Text = Localization.T("acc_default_hint"), AutoSize = false };
             hintDefault.SetBounds(12, 254, 430, 18);
-            hintDefault.Font = new Font("Segoe UI", 7.5f, FontStyle.Italic);
+            hintDefault.Font = Theme.PlainFont(7.5f, FontStyle.Italic);
             Content.Controls.Add(hintDefault);
 
             // Aviso mientras la app de Velin todavía no tiene su Client ID aprobado por Mojang.
             var settings0 = SettingsManager.Load();
             var info = new Label { AutoSize = false };
-            info.Font = new Font("Segoe UI", 7.5f, FontStyle.Italic);
+            info.Font = Theme.PlainFont(7.5f, FontStyle.Italic);
             info.SetBounds(12, 276, 430, 34);
             info.Text = MicrosoftAuth.IsConfigured(settings0.MicrosoftClientId) ? Localization.T("acc_ms_hint") : Localization.T("acc_ms_unavailable");
             Content.Controls.Add(info);

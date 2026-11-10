@@ -13,7 +13,7 @@ namespace Velin.Services
             get
             {
                 var v = typeof(AppInfo).Assembly.GetName().Version;
-                return v == null ? "1.1.1" : $"{v.Major}.{v.Minor}.{v.Build}";
+                return v == null ? "1.2.0" : $"{v.Major}.{v.Minor}.{v.Build}";
             }
         }
 

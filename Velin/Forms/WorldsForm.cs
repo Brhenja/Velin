@@ -67,7 +67,7 @@ namespace Velin.Forms
             Content.Controls.Add(open);
 
             _status.AutoSize = false;
-            _status.Font = new Font("Segoe UI", 8f, FontStyle.Italic);
+            _status.Font = Theme.PlainFont(8f, FontStyle.Italic);
             _status.SetBounds(12, 364, 496, 46);
             Content.Controls.Add(_status);
 

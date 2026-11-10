@@ -76,4 +76,22 @@ namespace Velin.Models
         public bool HasPrevious => Page > 0;
         public bool HasNext => Page + 1 < TotalPages;
     }
+
+    public enum ContentSort { Relevance, Downloads, Newest, Updated }
+
+    // Filtros del buscador. Una vacío (null) significa "cualquiera".
+    public class ContentFilter
+    {
+        public ContentSort Sort { get; set; } = ContentSort.Relevance;
+        public string? CategoryId { get; set; }          // Modrinth: nombre de la categoría; CurseForge: id numérico
+        public string? McVersion { get; set; }
+        public ModLoaderType? Loader { get; set; }
+    }
+
+    public class ContentCategory
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public override string ToString() => Name;
+    }
 }

@@ -18,7 +18,7 @@ namespace Velin.Forms
     //    en el formato del mod CustomSkinLoader (que es el que la muestra dentro del juego).
     public class SkinsForm : VelinFormBase
     {
-        private const int Scale = 5;
+        private const int SkinScale = 5;
 
         private readonly Account _account;
         private readonly CancellationTokenSource _cts = new();
@@ -126,7 +126,7 @@ namespace Velin.Forms
             Content.Controls.Add(_btnApply);
 
             _hint.Text = Localization.T(premium ? "skins_hint_premium" : "skins_hint_offline");
-            _hint.Font = new Font("Segoe UI", 8f, FontStyle.Italic);
+            _hint.Font = Theme.PlainFont(8f, FontStyle.Italic);
             _hint.SetBounds(12, 282, 676, 64);
             Content.Controls.Add(_hint);
 
@@ -139,7 +139,7 @@ namespace Velin.Forms
             AcceptButton = close;
 
             Theme.Apply(this);
-            _hint.Font = new Font("Segoe UI", 8f, FontStyle.Italic);
+            _hint.Font = Theme.PlainFont(8f, FontStyle.Italic);
 
             ReloadList(null);
             UpdateButtons();
@@ -212,8 +212,8 @@ namespace Velin.Forms
             using var skin = SkinRenderer.Load(png);
             if (skin == null) { ShowCurrentNote(Localization.T("skins_unreadable")); return; }
             _currentNote.Visible = false;
-            SetImage(_curFront, SkinRenderer.RenderFront(skin, slim, Scale));
-            SetImage(_curBack, SkinRenderer.RenderBack(skin, slim, Scale));
+            SetImage(_curFront, SkinRenderer.RenderFront(skin, slim, SkinScale));
+            SetImage(_curBack, SkinRenderer.RenderBack(skin, slim, SkinScale));
         }
 
         // --- Biblioteca ---------------------------------------------------------------------------
@@ -245,8 +245,8 @@ namespace Velin.Forms
                 using var skin = png == null ? null : SkinRenderer.Load(png);
                 if (skin != null)
                 {
-                    SetImage(_selFront, SkinRenderer.RenderFront(skin, entry.Slim, Scale));
-                    SetImage(_selBack, SkinRenderer.RenderBack(skin, entry.Slim, Scale));
+                    SetImage(_selFront, SkinRenderer.RenderFront(skin, entry.Slim, SkinScale));
+                    SetImage(_selBack, SkinRenderer.RenderBack(skin, entry.Slim, SkinScale));
                 }
             }
             UpdateButtons();

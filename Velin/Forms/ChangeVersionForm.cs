@@ -77,7 +77,7 @@ namespace Velin.Forms
             y += 34;
 
             var warn = new Label { Text = Localization.T("cv_warning"), AutoSize = false };
-            warn.Font = new Font("Segoe UI", 7.5f, FontStyle.Italic);
+            warn.Font = Theme.PlainFont(7.5f, FontStyle.Italic);
             warn.SetBounds(12, y, 410, 60);
             Content.Controls.Add(warn);
             y += 64;

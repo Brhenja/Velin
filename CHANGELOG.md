@@ -1,5 +1,49 @@
 # Changelog
 
+## 1.2.0
+
+Versión de comodidad e infraestructura.
+
+### Novedades
+- **Un solo `Velin.exe`:** el programa se publica en un único ejecutable (junto a la carpeta `Assets\`). El zip portable
+  trae una sola carpeta `Velin\`, y el instalador borra las `.dll` sueltas de versiones anteriores. Cada release incluye
+  `SHA256SUMS.txt`.
+- **Aviso de actualización:** al iniciar (como mucho cada 12 horas) y desde **Configuración → Acerca de** Velin consulta
+  si hay una versión nueva en GitHub. Muestra las notas y, con **Descargar último .exe**, baja el instalador, verifica su
+  SHA256 y lo ejecuta. En la versión portable abre la página de descarga. Se puede desactivar en Configuración u omitir una
+  versión.
+- **Acceso directo / `--jugar`:** en el menú de la instancia, **Crear acceso directo...** deja un `.lnk` (escritorio o menú
+  Inicio) que abre Velin y lanza esa instancia directamente (`Velin.exe --jugar "nombre"`).
+- **Primer inicio guiado:** la primera vez que abrís Velin un asistente permite elegir idioma (detectado por el sistema),
+  tema, nombre de usuario, aviso de actualizaciones, pantalla de inicio, música y sonido de click.
+- **13 idiomas:** español, inglés, portugués (Brasil), ruso, alemán, francés, italiano, chino simplificado, japonés,
+  turco, polaco, ucraniano y coreano. Los idiomas son archivos JSON en `Assets\Lang\`; se pueden agregar o reemplazar
+  poniendo un `<código>.json` en `data\lang\` (las claves que falten caen a inglés). Los idiomas que las fuentes
+  medievales no cubren usan una fuente normal de Windows (coreano, japonés y chino, una que tenga sus caracteres).
+- **Filtros en los buscadores:** orden (relevancia, descargas, más nuevos, actualizados), categoría, versión de Minecraft
+  (editable) y loader, para Modrinth y CurseForge.
+- **Actualizar modpacks de Modrinth:** menú de la instancia → **Actualizar modpack...** Conserva mundos, opciones y mods
+  propios, descarga solo los archivos que cambiaron, mueve a `modpack-update-trash\` lo que el modpack nuevo ya no trae y
+  no pisa la configuración existente. (Los modpacks de CurseForge se registran, pero todavía no se pueden actualizar.)
+- **Importar desde otros launchers:** **Importar... → De otro launcher** busca instancias de Prism Launcher / MultiMC /
+  PolyMC, de la app de CurseForge y del launcher oficial (`.minecraft`) y las **copia** (nunca toca los originales), con
+  opciones para mundos, mods y el resto.
+- **GitHub Actions:** `ci.yml` corre las pruebas y compila en cada push y pull request; `release.yml` arma el instalador, el
+  zip y los hashes a pedido y los deja como artefactos descargables.
+
+### Correcciones
+- El publish en un solo archivo dejaba afuera algunos archivos de `Assets\` (fuentes, ícono y música): ahora `build.ps1`
+  copia la carpeta completa y se detiene si falta alguno imprescindible.
+- Al cambiar de tema en el primer inicio, la barra de título (minimizar / cerrar) no cambiaba de color.
+- Advertencias de compilación: `SkinsForm.Scale` ocultaba `Control.Scale`, un posible `null` en el enlace de los detalles de
+  mods y un aviso de plataforma en el servicio de accesos directos.
+
+### Notas
+- El instalador **sigue sin estar firmado**: Windows SmartScreen puede mostrar un aviso (*Más información → Ejecutar de todas
+  formas*).
+- Las traducciones nuevas (todas menos español e inglés) no pasaron por hablantes nativos: si encontrás un error, abrí un
+  issue o mandá un pull request con el `.json` corregido.
+
 ## 1.1.1
 
 ### Novedades

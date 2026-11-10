@@ -1,0 +1,23 @@
+# Compila y corre las pruebas en cada push y pull request.
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Pruebas
+        run: dotnet run --project tests/ServiceTests -c Release
+
+      - name: Compilar
+        run: dotnet build Velin/Velin.csproj -c Release

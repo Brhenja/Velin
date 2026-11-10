@@ -94,6 +94,7 @@ namespace Velin.Services
                 progress?.Report("Copiando configuración y archivos incluidos en el modpack...");
                 ExtractOverrides(zip, "overrides/", instance.GameDir);
                 ExtractOverrides(zip, "client-overrides/", instance.GameDir);
+                WriteFileList(instance, ListPackFiles(zip, index));
                 percent?.Report(1.0);
             }
             catch
@@ -104,6 +105,67 @@ namespace Velin.Services
 
             return instance;
         }
+
+        // Rutas (relativas a la carpeta del juego) de todo lo que trae un modpack: archivos del índice y overrides.
+        // Se guardan en modpack-files.json para poder actualizar el pack después sin tocar lo que puso el usuario.
+        internal static List<string> ListPackFiles(ZipArchive zip, MrpackIndex index)
+        {
+            var list = new List<string>();
+            foreach (var f in index.Files ?? new List<MrpackFile>())
+                if (!string.IsNullOrWhiteSpace(f.Path) && !string.Equals(f.Env?.Client, "unsupported", StringComparison.OrdinalIgnoreCase))
+                    list.Add(f.Path!.Replace('\\', '/'));
+            foreach (var prefix in new[] { "overrides/", "client-overrides/" })
+                foreach (var entry in zip.Entries)
+                {
+                    var full = entry.FullName.Replace('\\', '/');
+                    if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                    var rel = full.Substring(prefix.Length);
+                    if (rel.Length > 0 && !rel.EndsWith('/')) list.Add(rel);
+                }
+            return list.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        public static string FileListPath(Instance instance) => System.IO.Path.Combine(instance.InstanceDir, "modpack-files.json");
+
+        internal static void WriteFileList(Instance instance, List<string> files)
+        {
+            try { AtomicFile.WriteAllText(FileListPath(instance), JsonSerializer.Serialize(files)); } catch { /* no es crítico */ }
+        }
+
+        public static List<string>? ReadFileList(Instance instance)
+        {
+            try
+            {
+                var path = FileListPath(instance);
+                return File.Exists(path) ? JsonSerializer.Deserialize<List<string>>(File.ReadAllText(path)) : null;
+            }
+            catch { return null; }
+        }
+
+        internal static async Task<MrpackIndex> ReadIndexAsync(ZipArchive zip)
+        {
+            var indexEntry = zip.GetEntry("modrinth.index.json")
+                ?? throw new InvalidDataException("Este archivo no es un modpack de Modrinth (.mrpack): falta modrinth.index.json.");
+            using var s = indexEntry.Open();
+            return await JsonSerializer.DeserializeAsync<MrpackIndex>(s)
+                ?? throw new InvalidDataException("El modrinth.index.json está vacío o dañado.");
+        }
+
+        // Versión de Minecraft y loader que pide el pack (mismo criterio que al importarlo).
+        internal static (string Mc, ModLoaderType Loader, string? LoaderVersion) ReadDependencies(MrpackIndex index)
+        {
+            var deps = index.Dependencies ?? new Dictionary<string, string>();
+            if (!deps.TryGetValue("minecraft", out var mc) || string.IsNullOrWhiteSpace(mc))
+                throw new InvalidDataException("El modpack no indica la versión de Minecraft.");
+            if (deps.TryGetValue("fabric-loader", out var fabric)) return (mc, ModLoaderType.Fabric, fabric);
+            if (deps.TryGetValue("quilt-loader", out var quilt)) return (mc, ModLoaderType.Quilt, quilt);
+            if (deps.TryGetValue("neoforge", out var neo)) return (mc, ModLoaderType.NeoForge, neo);
+            if (deps.TryGetValue("forge", out var forge))
+                return (mc, ModLoaderType.Forge, forge.StartsWith(mc + "-", StringComparison.Ordinal) ? forge.Substring(mc.Length + 1) : forge);
+            return (mc, ModLoaderType.Vanilla, null);
+        }
+
+        internal static bool IsAllowedPackUrl(string url) => IsAllowedUrl(url);
 
         private static async Task DownloadFilesAsync(MrpackIndex index, Instance instance,
             IProgress<string>? progress, IProgress<double>? percent, Action<string>? onWarning)

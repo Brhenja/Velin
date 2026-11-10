@@ -10,7 +10,7 @@ namespace Velin
     internal static class Program
     {
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             // DPI: se configura por código (la forma recomendada), no en el app.manifest.
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
@@ -28,13 +28,24 @@ namespace Velin
                 try { System.Net.Http.HttpClient.DefaultProxy = new WebProxy(settings.ProxyHost.Trim(), settings.ProxyPort); }
                 catch { /* un proxy mal escrito no debe impedir que abra el launcher */ }
             }
-            Localization.Lang = settings.Language;
+            PathService.EnsureAll();
+
+            // Primer inicio (todavía no hay settings.json): asistente para elegir idioma, tema y usuario.
+            if (!SettingsManager.Exists)
+            {
+                var langs = LanguageCatalog.Available();
+                Localization.SetLanguage(LanguageCatalog.Detect(System.Globalization.CultureInfo.CurrentUICulture, langs));
+                Theme.Current = ThemeManager.FindByName(settings.ThemeName);
+                using (var wizard = new Velin.Forms.FirstRunForm(settings))
+                    wizard.ShowDialog();
+                settings = SettingsManager.Load();
+            }
+            Localization.SetLanguage(settings.Language);
             Theme.Current = ThemeManager.FindByName(settings.ThemeName);
             SoundManager.MusicEnabled = settings.MusicEnabled;
             SoundManager.ClickEnabled = settings.ClickSoundEnabled;
             SoundManager.MusicVolume = Math.Clamp(settings.MusicVolume, 0, 100);
 
-            PathService.EnsureAll();
             SoundManager.Init();
             SoundManager.InstallGlobalClickSound();
 
@@ -56,7 +67,7 @@ namespace Velin
             }
 
             SoundManager.StartMusic();
-            Application.Run(new Velin.Forms.MainForm());
+            Application.Run(new Velin.Forms.MainForm(ShortcutService.ParsePlayArgument(args)));
             SoundManager.StopMusic();
         }
     }

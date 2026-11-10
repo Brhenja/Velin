@@ -68,10 +68,15 @@ namespace Velin.Services
             return JsonSerializer.Deserialize<CfListResponse<CfMod>>(json)?.Data ?? new List<CfMod>();
         }
 
+        // Categorías de un tipo de contenido (mods, shaders...) para el filtro del buscador.
+        public Task<string> GetCategoriesJsonAsync(int classId) => SendAsync(HttpMethod.Get, $"{Base}/categories?gameId={GameId}&classId={classId}");
+
         // Búsqueda paginada: index = posición del primer resultado. Devuelve los mods y el total que informa CurseForge.
-        public async Task<(List<CfMod> Mods, int Total)> SearchPageAsync(int classId, string query, string? mcVersion, int loaderType, int index, int pageSize = 30)
+        public async Task<(List<CfMod> Mods, int Total)> SearchPageAsync(int classId, string query, string? mcVersion, int loaderType, int index, int pageSize = 30,
+            int sortField = 2, int categoryId = 0)
         {
-            var url = $"{Base}/mods/search?gameId={GameId}&classId={classId}&searchFilter={Uri.EscapeDataString(query)}&sortField=2&sortOrder=desc&pageSize={pageSize}&index={Math.Max(0, index)}";
+            var url = $"{Base}/mods/search?gameId={GameId}&classId={classId}&searchFilter={Uri.EscapeDataString(query)}&sortField={sortField}&sortOrder=desc&pageSize={pageSize}&index={Math.Max(0, index)}";
+            if (categoryId > 0) url += "&categoryId=" + categoryId;
             if (!string.IsNullOrEmpty(mcVersion)) url += "&gameVersion=" + Uri.EscapeDataString(mcVersion);
             if (loaderType > 0) url += "&modLoaderType=" + loaderType;
             var json = await SendAsync(HttpMethod.Get, url);

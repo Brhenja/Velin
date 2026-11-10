@@ -36,6 +36,12 @@ namespace Velin.Models
         public long TotalPlaySeconds { get; set; }
 
         // Opciones de lanzamiento por instancia. Todas opcionales: vacío/0/false = comportamiento de siempre.
+        // De dónde vino el modpack (si se instaló desde Velin): permite actualizarlo después. "" = no es un modpack instalado desde Velin.
+        public string ModpackSource { get; set; } = "";        // "modrinth" | "curseforge"
+        public string ModpackProjectId { get; set; } = "";
+        public string ModpackVersionId { get; set; } = "";
+        public string ModpackVersionName { get; set; } = "";
+
         public string JavaRuntime { get; set; } = "";       // "" = Temurin automático; "graalvm" / "semeru" = Java opcional (se activa en Configuración)
         public string JavaPath { get; set; } = "";        // Java propio (si no, se usa el que baja el launcher)
         public string ExtraGameArgs { get; set; } = "";   // argumentos extra del juego

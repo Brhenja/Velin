@@ -21,6 +21,7 @@ namespace Velin.Forms
         private readonly Button _btnInstall = new();
         private readonly Button _btnDetails = new();
         private readonly ResultsPager _pager = new(410);
+        private ContentFilterBar _filters = null!;
 
         private readonly ListBox _installed = new() { ItemHeight = 34 };
         private readonly Button _btnRemove = new();
@@ -45,7 +46,11 @@ namespace Velin.Forms
                 await SearchAsync();
             };
 
-            _results.SetBounds(12, 72, 410, 330);
+            _filters = new ContentFilterBar(ContentType.Mod, _instance) { Location = new Point(12, 70) };
+            _filters.Changed += async () => await SearchAsync();
+            Content.Controls.Add(_filters);
+
+            _results.SetBounds(12, 100, 410, 302);
             Content.Controls.Add(_results);
 
             _pager.Location = new Point(12, 406);
@@ -168,7 +173,8 @@ namespace Velin.Forms
             try
             {
                 var source = ContentUi.SourceOf(_source);
-                var result = await ContentSources.SearchPageAsync(source, ContentType.Mod, _search.Text, _instance, page);
+                await _filters.EnsureSourceAsync(source);
+                var result = await ContentSources.SearchPageAsync(source, ContentType.Mod, _search.Text, _instance, page, _filters.Current);
                 if (source != ContentUi.SourceOf(_source)) return; // cambió de fuente mientras buscaba
                 foreach (var h in result.Items) _results.Items.Add(h);
                 _pager.SetState(result);

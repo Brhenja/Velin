@@ -21,6 +21,23 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 > son de Brhenja; el código lo escribió **Claude**, la IA de Anthropic. Los recursos (música, sonido de click, mascota
 > del tema Flash e ícono) también los generó una IA.
 
+## Novedades de la versión 1.2.0
+
+- **Un solo `Velin.exe`:** el programa se publica en un único ejecutable (con la carpeta `Assets\` al lado); el portable
+  es una sola carpeta `Velin\` y el instalador limpia las `.dll` sueltas de versiones viejas. Cada release trae
+  `SHA256SUMS.txt`.
+- **Aviso de actualización:** Velin avisa cuando hay una versión nueva (se puede desactivar en **Configuración**).
+  **Descargar último .exe** baja el instalador, verifica su SHA256 y lo ejecuta; en la versión portable abre la página de
+  descarga. También hay un botón manual en **Configuración → Acerca de**.
+- **Acceso directo a una instancia:** en el menú de la instancia, **Crear acceso directo...** deja un `.lnk` que abre
+  Velin y juega esa instancia (`Velin.exe --jugar "nombre"`).
+- **Primer inicio guiado:** idioma, tema, usuario, avisos de actualización, pantalla de inicio, música y sonido de click.
+- **13 idiomas** y soporte para agregar los tuyos (ver abajo).
+- **Filtros en los buscadores:** orden, categoría, versión de Minecraft y loader.
+- **Actualizar modpacks de Modrinth:** conserva tus mundos, opciones y mods propios y baja solo lo que cambió.
+- **Importar desde otros launchers:** Prism Launcher / MultiMC / PolyMC, app de CurseForge y launcher oficial de Minecraft.
+- **GitHub Actions** para compilar y probar en cada cambio (lista completa en [CHANGELOG.md](CHANGELOG.md)).
+
 ## Novedades de la versión 1.1.1
 
 - **Páginas en el buscador:** los resultados de mods, modpacks, resource packs, shaders y datapacks se recorren con
@@ -51,8 +68,13 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 - **CurseForge y NeoForge 1.20.1** están implementados pero **todavía no se probaron contra los servidores reales**.
 - **GraalVM y Semeru** se descargan de los sitios oficiales (Oracle y IBM en GitHub); su descarga y arranque con
   Minecraft pueden necesitar ajustes.
-- El instalador **no está firmado digitalmente**: Windows SmartScreen puede mostrar un aviso ("Windows protegió tu PC").
-  Se puede continuar con *Más información → Ejecutar de todas formas*.
+- El instalador **no está firmado digitalmente** (la firma gratuita para proyectos de código abierto todavía no se aprobó):
+  Windows SmartScreen puede mostrar un aviso ("Windows protegió tu PC"). Se puede continuar con *Más información →
+  Ejecutar de todas formas*; podés comprobar el archivo con el SHA256 de `SHA256SUMS.txt`.
+- **Actualizar modpacks** funciona solo con modpacks de **Modrinth** instalados desde Velin 1.2.0 o posterior; los de
+  CurseForge todavía no.
+- Las traducciones (salvo español e inglés) no las revisaron hablantes nativos: si ves un error, avisá en un
+  [issue](https://github.com/Brhenja/Velin/issues).
 
 ## Requisitos
 
@@ -64,17 +86,18 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 
 Bajá lo que prefieras de la página de [Releases](https://github.com/Brhenja/Velin/releases):
 
-**Instalador (`VelinSetup-1.1.1.exe`)**
+**Instalador (`VelinSetup-1.2.0.exe`)**
 1. Ejecutalo. No pide permisos de administrador: instala en `%LocalAppData%\Velin`.
 2. Elegí si querés acceso directo en el escritorio y terminá. Queda en el menú Inicio.
 3. Para desinstalar: *Configuración de Windows → Aplicaciones*. Te pregunta si querés borrar también tus datos
    (instancias y mundos); **por defecto no se borran**.
 
-**Portable (`Velin-1.1.1-portable-win-x64.zip`)**
+**Portable (`Velin-1.2.0-portable-win-x64.zip`)**
 1. Descomprimilo en una carpeta donde tu usuario pueda escribir (no en `Program Files`).
-2. Ejecutá `Velin.exe`. Para quitarlo, borrá la carpeta.
+2. Ejecutá `Velin.exe` (dentro de la carpeta `Velin\`). Para quitarlo, borrá la carpeta.
 
-Los datos se guardan en la carpeta `data\` junto al `.exe`, así que podés mover la carpeta y llevarte todo.
+Los datos se guardan en la carpeta `data\` junto al `.exe`, así que podés mover la carpeta y llevarte todo. **No borres
+ni muevas la carpeta `Assets\`** que está junto al `.exe`: tiene las fuentes, los temas, los idiomas y los sonidos.
 
 ## Uso
 
@@ -121,7 +144,11 @@ Sin key, Modrinth sigue funcionando normal.
 
 **Instancias**
 - Cada una con su carpeta (`versions`, `mods`, `saves`, etc.): crear, duplicar, renombrar y eliminar.
-- Exportar e importar: `.zip` de Velin, `.mrpack` de Modrinth y `.zip` de CurseForge.
+- Exportar e importar: `.zip` de Velin, `.mrpack` de Modrinth y `.zip` de CurseForge. También se pueden **importar
+  instancias de otros launchers** (Prism / MultiMC / PolyMC, app de CurseForge y `.minecraft`): **Importar... → De otro
+  launcher**. Se copian los archivos y los originales no se tocan.
+- **Actualizar modpack** (Modrinth) desde el menú de la instancia, y **Crear acceso directo...** para abrir Velin y jugar
+  una instancia con un clic.
 - Grupos con filtro, orden por nombre / última vez jugada / tiempo jugado, y tiempo jugado por instancia.
 - Cambiar la versión o el loader de una instancia conservando mundos, mods y configuración.
 - Instancias con **.jar propio**.
@@ -144,7 +171,7 @@ elige por defecto la estable más nueva.
 
 **Contenido**
 - Mods (activar/desactivar, quitar, actualizar), modpacks (con elección de versión), resource packs, shaders y
-  datapacks.
+  datapacks, con filtros de orden, categoría, versión y loader.
 - Reconocimiento por hash de `.jar` locales (Modrinth).
 - **Mundos:** backup de uno, duplicar, eliminar, exportar e importar `.zip`.
 - **Copias de seguridad automáticas** (opcionales) con restauración desde la interfaz.
@@ -155,11 +182,22 @@ elige por defecto la estable más nueva.
 
 **Interfaz**
 - Ventana propia sin bordes de Windows, temas JSON (Velin medieval, Flash y **Black & White** oscuro y claro),
-  español e inglés.
+  13 idiomas (ver abajo).
 - Música de fondo (con interruptor y volumen) y sonido de click, splash opcional y salteable.
 - **Configuración** por secciones: idioma, tema, usuario, confirmaciones, RAM, flags y argumentos de JVM globales,
   Java opcionales, fuente de contenido y API key, sonido, proxy, carpeta de datos y limpieza de caché.
 - Proxy opcional (lo usa también el juego).
+
+## Idiomas
+
+Velin viene en **español, inglés, portugués (Brasil), ruso, alemán, francés, italiano, chino simplificado, japonés,
+turco, polaco, ucraniano y coreano**. Al primer inicio se elige el idioma del sistema o el que prefieras, y se cambia en
+**Configuración** (pide reiniciar).
+
+Los idiomas son archivos JSON (`Assets\Lang\<código>.json`). Para **agregar o corregir uno**, copiá `es.json` o `en.json`
+a `data\lang\<código>.json`, traducí los valores (conservando `{0}`, `{1}` y `\n`) y poné en `"lang.name"` el nombre del
+idioma en ese idioma. Aparece solo en la lista de **Configuración**. Las claves que falten se muestran en inglés. Si
+tu traducción puede servirle a otros, mandala como pull request.
 
 ## Temas personalizados
 
@@ -198,6 +236,7 @@ data\
   java\        Java descargado
   libraries\   librerías y assets de Minecraft
   assets\
+  lang\        tus idiomas JSON
   cache\       caché de imágenes de los detalles de mods
   skins\       tu biblioteca de skins
   vault\       tu Vault personal
@@ -211,7 +250,7 @@ Actualizar Velin con el instalador **no toca** `data\`.
 
 ## Compilar desde el código
 
-Ver [docs/COMPILAR.md](docs/COMPILAR.md). Para activar el login de Microsoft en un fork:
+Ver [docs/COMPILAR.md](docs/COMPILAR.md) (incluye GitHub Actions y cómo armar una release). Para activar el login de Microsoft en un fork:
 [docs/LOGIN_MICROSOFT_FORKS.md](docs/LOGIN_MICROSOFT_FORKS.md).
 
 ## Créditos

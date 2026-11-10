@@ -78,8 +78,8 @@ namespace Velin.UI
 
         public static Font UiFont(float size, FontStyle style = FontStyle.Regular)
         {
-            if (!Current.UseMedievalFont)
-                return new Font(SystemFonts.DefaultFont.FontFamily, size, style);
+            if (!UseMedieval)
+                return MakeFont(CjkFamily ?? SystemFonts.DefaultFont.FontFamily, size, style);
 
             // Las fuentes medievales no tienen cursiva de verdad (Windows la "inventa" y se ve dentada) y
             // pierden nitidez cuando son muy chicas. Por eso: el texto chico o en cursiva (avisos, ayudas)
@@ -90,7 +90,46 @@ namespace Velin.UI
         }
 
         public static Font TitleFont(float size, FontStyle style = FontStyle.Regular)
-            => new Font(Current.UseMedievalFont ? TitleFamily : SystemFonts.DefaultFont.FontFamily, size, style);
+            => MakeFont(UseMedieval ? TitleFamily : (CjkFamily ?? SystemFonts.DefaultFont.FontFamily), size, style);
+
+        // Fuente normal (Segoe UI) para textos chicos, ayudas y cursivas. En coreano, japonés y chino usa una fuente que tenga esos caracteres.
+        public static Font PlainFont(float size, FontStyle style = FontStyle.Regular)
+        {
+            var cjk = CjkFamily;
+            return cjk != null ? MakeFont(cjk, size, style) : new Font("Segoe UI", size, style);
+        }
+
+        // Familia para coreano / japonés / chino (null si el idioma actual no la necesita o no hay ninguna instalada). Se resuelve una vez por idioma.
+        private static string? _cjkLang;
+        private static FontFamily? _cjkFamily;
+        private static FontFamily? CjkFamily
+        {
+            get
+            {
+                var lang = Localization.Lang;
+                if (_cjkLang != lang)
+                {
+                    _cjkLang = lang;
+                    _cjkFamily = null;
+                    foreach (var name in LanguageCatalog.CjkFontNames(lang))
+                    {
+                        try { _cjkFamily = new FontFamily(name); break; }
+                        catch (ArgumentException) { /* esa fuente no está instalada: se prueba la siguiente */ }
+                    }
+                }
+                return _cjkFamily;
+            }
+        }
+
+        // Algunas fuentes no traen cursiva/negrita: si el estilo no existe se usa el normal en vez de romper la ventana.
+        private static Font MakeFont(FontFamily family, float size, FontStyle style)
+        {
+            try { return new Font(family, size, style); }
+            catch (ArgumentException) { return new Font(family, size, FontStyle.Regular); }
+        }
+
+        // Las fuentes medievales sólo tienen alfabeto latino básico: en ruso, chino, japonés, coreano, turco, polaco... se usa la fuente normal.
+        private static bool UseMedieval => Current.UseMedievalFont && !Localization.UsesSystemFont;
 
         public static void PaintBackground(Graphics g, Rectangle rect)
         {

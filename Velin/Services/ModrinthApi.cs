@@ -28,13 +28,15 @@ namespace Velin.Services
         }
 
         // Búsqueda paginada (offset = posición del primer resultado). loader = null no filtra por loader.
-        public async Task<ModrinthSearchResult> SearchPageAsync(string query, string projectType, string? mcVersion, string? loader, int offset, int limit = 30)
+        public async Task<ModrinthSearchResult> SearchPageAsync(string query, string projectType, string? mcVersion, string? loader, int offset, int limit = 30,
+            string sortIndex = "relevance", string? category = null)
         {
             var facets = new List<string> { $"[\"project_type:{projectType}\"]" };
             if (!string.IsNullOrEmpty(mcVersion)) facets.Add($"[\"versions:{mcVersion}\"]");
             if (!string.IsNullOrEmpty(loader)) facets.Add($"[\"categories:{loader}\"]");
+            if (!string.IsNullOrEmpty(category)) facets.Add($"[\"categories:{category}\"]");
             var facetJson = "[" + string.Join(",", facets) + "]";
-            var url = $"{Base}/search?query={Uri.EscapeDataString(query)}&limit={limit}&offset={Math.Max(0, offset)}&facets={Uri.EscapeDataString(facetJson)}";
+            var url = $"{Base}/search?query={Uri.EscapeDataString(query)}&limit={limit}&offset={Math.Max(0, offset)}&index={sortIndex}&facets={Uri.EscapeDataString(facetJson)}";
             var json = await _http.GetStringAsync(url);
             return JsonSerializer.Deserialize<ModrinthSearchResult>(json) ?? new ModrinthSearchResult();
         }
@@ -53,6 +55,9 @@ namespace Velin.Services
         }
 
         // Versiones de un proyecto (las más nuevas primero), opcionalmente sólo las de una versión de Minecraft.
+        // Categorías de Modrinth (para el filtro del buscador). Se interpretan en ContentCatalog.
+        public Task<string> GetCategoriesJsonAsync() => _http.GetStringAsync($"{Base}/tag/category");
+
         // JSON crudo del proyecto (descripción completa, galería, enlaces). Se interpreta en ProjectDetailsService.
         public Task<string> GetProjectJsonAsync(string projectIdOrSlug) =>
             _http.GetStringAsync($"{Base}/project/{Uri.EscapeDataString(projectIdOrSlug)}");

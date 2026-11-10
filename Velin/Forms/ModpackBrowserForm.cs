@@ -19,6 +19,7 @@ namespace Velin.Forms
         private readonly Button _btnSearch = new();
         private readonly ListBox _results = new() { ItemHeight = 34 };
         private readonly ResultsPager _pager = new(410);
+        private ContentFilterBar _filters = null!;
         private readonly Label _title = new();
         private readonly Label _desc = new();
         private readonly ComboBox _versions = new() { DropDownStyle = ComboBoxStyle.DropDownList };
@@ -43,7 +44,10 @@ namespace Velin.Forms
                 await SearchAsync();
             };
 
-            _results.SetBounds(12, 72, 410, 330);
+            _filters = new ContentFilterBar(ContentType.ModPack, null) { Location = new Point(12, 70) };
+            _filters.Changed += async () => await SearchAsync();
+            Content.Controls.Add(_filters);
+            _results.SetBounds(12, 100, 410, 302);
             _pager.Location = new Point(12, 406);
             _pager.PageRequested += async page => await SearchAsync(page);
             Content.Controls.Add(_pager);
@@ -52,7 +56,7 @@ namespace Velin.Forms
             Content.Controls.Add(_results);
 
             _title.AutoSize = false;
-            _title.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            _title.Font = Theme.PlainFont(11f, FontStyle.Bold);
             _title.SetBounds(438, 50, 340, 28);
             Content.Controls.Add(_title);
 
@@ -66,7 +70,7 @@ namespace Velin.Forms
             Content.Controls.Add(_versions);
 
             var note = new Label { Text = Localization.T("mp_note"), AutoSize = false };
-            note.Font = new Font("Segoe UI", 7.5f, FontStyle.Italic);
+            note.Font = Theme.PlainFont(7.5f, FontStyle.Italic);
             note.SetBounds(438, 278, 340, 70);
             Content.Controls.Add(note);
 
@@ -101,7 +105,8 @@ namespace Velin.Forms
             var source = ContentUi.SourceOf(_source);
             try
             {
-                var result = await ContentSources.SearchPageAsync(source, ContentType.ModPack, _search.Text, null, page);
+                await _filters.EnsureSourceAsync(source);
+                var result = await ContentSources.SearchPageAsync(source, ContentType.ModPack, _search.Text, null, page, _filters.Current);
                 if (source != ContentUi.SourceOf(_source)) return; // cambió de fuente mientras buscaba
                 foreach (var h in result.Items) _results.Items.Add(h);
                 _pager.SetState(result);

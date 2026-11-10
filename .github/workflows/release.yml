@@ -1,0 +1,38 @@
+# Arma el instalador, el zip portable y SHA256SUMS.txt en un servidor de GitHub y los deja como artefactos descargables.
+# Se ejecuta a mano: pestaña Actions -> "Release build" -> Run workflow. NO crea la release ni sube nada a Releases:
+# eso se hace a mano desde la página de GitHub (Releases -> Draft a new release), adjuntando los archivos de dist\.
+name: Release build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Instalar Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Leer la version del proyecto
+        shell: pwsh
+        run: |
+          [xml]$xml = Get-Content Velin/Velin.csproj -Raw
+          $version = @($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ }) | Select-Object -First 1
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Compilar, probar y empaquetar
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Guardar los archivos generados
+        uses: actions/upload-artifact@v4
+        with:
+          name: velin-${{ env.VERSION }}
+          path: dist/*

@@ -17,12 +17,13 @@ namespace Velin.Forms
     public class SettingsForm : VelinFormBase
     {
         // General
-        private readonly ComboBox _lang = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+        private readonly ComboBox _lang = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
         private readonly ComboBox _theme = new() { DropDownStyle = ComboBoxStyle.DropDownList };
         private readonly TextBox _username = new();
         private readonly CheckBox _splash = new();
         private readonly CheckBox _confirmDelete = new();
         private readonly CheckBox _keepOpen = new();
+        private readonly CheckBox _checkUpdates = new();
         // Juego
         private readonly NumericUpDown _ram = new() { Minimum = 512, Maximum = 32768, Increment = 512 };
         private readonly CheckBox _optFlags = new();
@@ -53,6 +54,7 @@ namespace Velin.Forms
         private readonly Label _cacheLabel = new();
         // Acerca de
         private readonly LinkLabel _github = new();
+        private readonly Button _updateBtn = new();
 
         private readonly ListBox _nav = new() { ItemHeight = 30 };
         private readonly List<Panel> _panels = new();
@@ -121,7 +123,7 @@ namespace Velin.Forms
         private static Label Lbl(Panel p, string text, int y, bool hint = false, int width = 0)
         {
             var l = new Label { Text = text, AutoSize = width == 0 };
-            if (hint) l.Font = new Font("Segoe UI", 7.5f, FontStyle.Italic);
+            if (hint) l.Font = Theme.PlainFont(7.5f, FontStyle.Italic);
             if (width > 0) l.SetBounds(0, y, width, 0);
             l.Location = new Point(0, y);
             p.Controls.Add(l);
@@ -143,9 +145,10 @@ namespace Velin.Forms
             var p = NewPanel();
             int y = 0;
             Lbl(p, Localization.T("lbl_language"), y); y += 22;
-            _lang.Items.AddRange(new object[] { "Español", "English" });
-            _lang.SelectedIndex = s.Language == "en" ? 1 : 0;
-            _lang.SetBounds(0, y, 200, 24); p.Controls.Add(_lang); y += 36;
+            foreach (var li in LanguageCatalog.Available()) _lang.Items.Add(li);
+            var langIdx = LanguageCatalog.Available().FindIndex(l => l.Code == s.Language);
+            _lang.SelectedIndex = langIdx >= 0 ? langIdx : 0;
+            _lang.SetBounds(0, y, 260, 24); p.Controls.Add(_lang); y += 36;
 
             Lbl(p, Localization.T("lbl_theme"), y); y += 22;
             var themes = ThemeManager.LoadAll();
@@ -161,7 +164,8 @@ namespace Velin.Forms
 
             Chk(p, _splash, Localization.T("chk_splash"), s.ShowSplash, y); y += 30;
             Chk(p, _confirmDelete, Localization.T("chk_confirm_delete"), s.ConfirmDelete, y); y += 30;
-            Chk(p, _keepOpen, Localization.T("chk_keep_open"), s.KeepLauncherOpen, y, 40);
+            Chk(p, _keepOpen, Localization.T("chk_keep_open"), s.KeepLauncherOpen, y, 40); y += 46;
+            Chk(p, _checkUpdates, Localization.T("chk_check_updates"), s.CheckUpdatesOnStart, y);
         }
 
         private void BuildGame(AppSettings s)
@@ -320,7 +324,7 @@ namespace Velin.Forms
 
             _cfLink.Text = Localization.T("lbl_cf_key_link");
             _cfLink.AutoSize = true;
-            _cfLink.Font = new Font("Segoe UI", 7.5f, FontStyle.Italic);
+            _cfLink.Font = Theme.PlainFont(7.5f, FontStyle.Italic);
             _cfLink.Location = new Point(0, y);
             _cfLink.LinkClicked += (a, b) => OpenUrl("https://console.curseforge.com/");
             p.Controls.Add(_cfLink);
@@ -380,14 +384,42 @@ namespace Velin.Forms
 
             _github.Text = "GitHub: " + AppInfo.RepoUrl;
             _github.AutoSize = true;
-            _github.Font = new Font("Segoe UI", 8.5f, FontStyle.Italic);
+            _github.Font = Theme.PlainFont(8.5f, FontStyle.Italic);
             _github.Location = new Point(0, y);
             _github.LinkArea = new LinkArea(8, AppInfo.RepoUrl.Length);
             _github.LinkClicked += (a, b) => OpenUrl(AppInfo.RepoUrl);
             p.Controls.Add(_github);
             _links.Add(_github);
             y += 34;
+            _updateBtn.Text = Localization.T("btn_check_launcher_updates");
+            _updateBtn.SetBounds(0, y, 220, 30);
+            _updateBtn.Click += async (a, b) => await CheckUpdatesNowAsync();
+            p.Controls.Add(_updateBtn);
+            y += 40;
             Lbl(p, Localization.T("lbl_about_disclaimer"), y, hint: true, width: 450).Height = 60;
+        }
+
+        // Búsqueda manual desde "Acerca de": muestra el aviso si hay versión nueva o dice que ya está al día.
+        private async Task CheckUpdatesNowAsync()
+        {
+            _updateBtn.Enabled = false;
+            try
+            {
+                var info = await UpdateService.CheckAsync(AppInfo.Version);
+                if (IsDisposed) return;
+                if (info == null)
+                {
+                    MessageBox.Show(this, Localization.T("upd_up_to_date", AppInfo.Version), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                using var form = new UpdateForm(info);
+                form.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                if (!IsDisposed) MessageBox.Show(this, Localization.T("upd_check_failed", ex.Message), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally { if (!IsDisposed) _updateBtn.Enabled = true; }
         }
 
         // ---- Guardado --------------------------------------------------------------------------
@@ -397,7 +429,7 @@ namespace Velin.Forms
             // Se parte de la configuración guardada, así los ajustes que no están en esta
             // ventana (como el orden de la lista de instancias) no se pierden al guardar.
             var ns = SettingsManager.Load();
-            ns.Language = _lang.SelectedIndex == 1 ? "en" : "es";
+            ns.Language = (_lang.SelectedItem as LanguageInfo)?.Code ?? "es";
             ns.ThemeName = _theme.SelectedItem?.ToString() ?? "Velin (medieval)";
             ns.DefaultUsername = string.IsNullOrWhiteSpace(_username.Text) ? "Player" : _username.Text.Trim();
             ns.DefaultRamMB = (int)_ram.Value;
@@ -424,6 +456,7 @@ namespace Velin.Forms
             ns.ConfirmDelete = _confirmDelete.Checked;
             ns.BackupWorldsEnabled = _backup.Checked;
             ns.KeepLauncherOpen = _keepOpen.Checked;
+            ns.CheckUpdatesOnStart = _checkUpdates.Checked;
             ns.UseOptimizedFlags = _optFlags.Checked;
             ns.GlobalJvmArgs = _jvmArgs.Text.Trim();
             ns.DefaultContentSource = _defaultSource.SelectedIndex == 1 ? "curseforge" : "modrinth";

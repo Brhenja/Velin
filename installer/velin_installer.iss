@@ -1,9 +1,9 @@
 ﻿; Velin - instalador (Inno Setup 6.3 o superior)
 ; Se compila con build.ps1 (que publica el programa en ..\publish y pasa /DAppVersion=<version>).
-; A mano: ISCC.exe /DAppVersion=1.1.1 installer\velin_installer.iss
+; A mano: ISCC.exe /DAppVersion=1.2.0 installer\velin_installer.iss
 
 #ifndef AppVersion
-  #define AppVersion "1.1.1"
+  #define AppVersion "1.2.0"
 #endif
 #define AppName "Velin"
 #define AppPublisher "Brhenja"
@@ -45,6 +45,27 @@ english.DeleteDataPrompt=Do you also want to delete your Velin data (instances, 
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+[InstallDelete]
+; Hasta la 1.1.x la carpeta de instalacion tenia cientos de .dll sueltas. Desde la 1.2.0 todo va en un solo Velin.exe,
+; asi que al actualizar se borran esos restos (data\ nunca se toca).
+Type: files; Name: "{app}\*.dll"
+Type: files; Name: "{app}\*.deps.json"
+Type: files; Name: "{app}\*.runtimeconfig.json"
+Type: filesandordirs; Name: "{app}\runtimes"
+Type: filesandordirs; Name: "{app}\cs"
+Type: filesandordirs; Name: "{app}\de"
+Type: filesandordirs; Name: "{app}\es"
+Type: filesandordirs; Name: "{app}\fr"
+Type: filesandordirs; Name: "{app}\it"
+Type: filesandordirs; Name: "{app}\ja"
+Type: filesandordirs; Name: "{app}\ko"
+Type: filesandordirs; Name: "{app}\pl"
+Type: filesandordirs; Name: "{app}\pt-BR"
+Type: filesandordirs; Name: "{app}\ru"
+Type: filesandordirs; Name: "{app}\tr"
+Type: filesandordirs; Name: "{app}\zh-Hans"
+Type: filesandordirs; Name: "{app}\zh-Hant"
 
 [Files]
 ; data\ es de cada usuario (instancias, mundos, cuentas): nunca se pisa ni se incluye.

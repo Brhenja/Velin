@@ -46,6 +46,11 @@ namespace Velin.Models
         public int MusicVolume { get; set; } = 100;
         // Fuente que aparece primero en los buscadores de contenido: "modrinth" o "curseforge".
         public string DefaultContentSource { get; set; } = "modrinth";
+        // --- Novedades 1.2.0 ---
+        // Aviso de versión nueva (GitHub Releases) al abrir Velin, como máximo cada 12 horas.
+        public bool CheckUpdatesOnStart { get; set; } = true;
+        public DateTime LastUpdateCheckUtc { get; set; } = DateTime.MinValue;
+        public string SkippedUpdateVersion { get; set; } = "";
         // Pedir confirmación antes de eliminar una instancia.
         public bool ConfirmDelete { get; set; } = true;
     }

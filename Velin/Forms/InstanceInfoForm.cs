@@ -39,7 +39,7 @@ namespace Velin.Forms
 
             // Ayuda según la RAM de esta PC (con un ⚠ si te pasás de lo recomendado).
             _ramHint.AutoSize = false;
-            _ramHint.Font = new Font("Segoe UI", 7.5f, FontStyle.Italic);
+            _ramHint.Font = Theme.PlainFont(7.5f, FontStyle.Italic);
             _ramHint.Text = RamHint.Build((int)_ram.Value);
             _ramHint.SetBounds(12, y, 396, 30);
             Content.Controls.Add(_ramHint);
@@ -117,7 +117,7 @@ namespace Velin.Forms
             {
                 Text = value,
                 AutoSize = false,
-                Font = small ? new Font("Segoe UI", 7.5f) : Font
+                Font = small ? Theme.PlainFont(7.5f) : Font
             };
             valueLabel.SetBounds(12, y, 396, small ? 32 : 20);
             Content.Controls.Add(valueLabel);
