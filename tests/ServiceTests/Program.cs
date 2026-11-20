@@ -560,9 +560,9 @@ Check(v11Graal.Flavor == JavaFlavor.GraalVM && v11Graal.Major == 21, "JavaScanne
 Check(v11Temurin.Flavor == JavaFlavor.HotSpot && v11Temurin.Vendor == "Temurin" && v11Temurin.Major == 17, "JavaScanner reconoce Temurin (HotSpot)");
 Check(JavaScanner.Describe(Path.Combine(v11Root, "no-existe", "bin", "javaw.exe")).Flavor == JavaFlavor.HotSpot, "Describe de un Java inexistente no falla");
 
-var v11J9 = JavaArgsBuilder.Build(2048, JavaFlavor.OpenJ9, true);
+var v11J9 = JavaArgsBuilder.Build(2048, JavaFlavor.OpenJ9, true, 8, 16384);
 Check(v11J9.Contains("-Xgcpolicy:gencon") && !v11J9.Any(a => a.Contains("G1")) && v11J9.Contains("-Xmx2048M"), "flags de OpenJ9: gencon y sin flags de G1");
-Check(JavaArgsBuilder.Build(2048, JavaFlavor.GraalVM, true).Contains("-XX:+UseG1GC") && JavaArgsBuilder.Build(2048, JavaFlavor.HotSpot, true).Contains("-XX:+UseG1GC"), "GraalVM y HotSpot usan los flags G1");
+Check(JavaArgsBuilder.Build(4096, JavaFlavor.GraalVM, true, 8, 16384).Contains("-XX:+UseG1GC") && JavaArgsBuilder.Build(4096, JavaFlavor.HotSpot, true, 8, 16384).Contains("-XX:+UseG1GC"), "GraalVM y HotSpot usan los flags G1 en una PC con recursos");
 var v11Min = JavaArgsBuilder.Build(4096, JavaFlavor.HotSpot, false);
 Check(v11Min.Contains("-Xmx4096M") && !v11Min.Any(a => a.Contains("G1")), "sin flags optimizados: solo memoria y codificación");
 
@@ -729,6 +729,134 @@ else
 // Fuentes para los idiomas que la fuente por defecto no resuelve bien
 Check(LanguageCatalog.CjkFontNames("ko")[0] == "Malgun Gothic" && LanguageCatalog.CjkFontNames("ja")[0] == "Yu Gothic UI" && LanguageCatalog.CjkFontNames("zh-CN")[0] == "Microsoft YaHei UI"
       && LanguageCatalog.CjkFontNames("es").Length == 0 && LanguageCatalog.CjkFontNames("ru").Length == 0 && LanguageCatalog.CjkFontNames("pt-BR").Length == 0, "LanguageCatalog: fuente propia para coreano, japonés y chino (el resto no la necesita)");
+
+// v1.3.0: idioma de Windows por nombre de cultura y perfiles de flags de Java según la PC
+var v130All = new[] { "es", "en", "pt-BR", "ru", "de", "fr", "it", "zh-CN", "ja", "tr", "pl", "uk", "ko" }.Select(c => new LanguageInfo { Code = c, Name = c }).ToList();
+Check(LanguageCatalog.Detect("es-AR", v130All) == "es" && LanguageCatalog.Detect("pt-PT", v130All) == "pt-BR" && LanguageCatalog.Detect("zh-Hans-CN", v130All) == "zh-CN"
+      && LanguageCatalog.Detect("ko-KR", v130All) == "ko" && LanguageCatalog.Detect("de-AT", v130All) == "de" && LanguageCatalog.Detect("ja", v130All) == "ja",
+      "LanguageCatalog.Detect por nombre: es-AR, pt-PT, zh-Hans-CN, ko-KR, de-AT y ja");
+Check(LanguageCatalog.Detect("", v130All) == "en" && LanguageCatalog.Detect((string?)null, v130All) == "en" && LanguageCatalog.Detect("xx-YY", v130All) == "en" && LanguageCatalog.Detect("fr_CA", v130All) == "fr",
+      "LanguageCatalog.Detect: vacío o desconocido cae a inglés (la cultura invariante también) y acepta guion bajo");
+Check(JavaArgsBuilder.IsWeakMachine(4096, 2, 16384) && JavaArgsBuilder.IsWeakMachine(1024, 8, 16384) && JavaArgsBuilder.IsWeakMachine(4096, 8, 4096)
+      && !JavaArgsBuilder.IsWeakMachine(4096, 8, 16384) && !JavaArgsBuilder.IsWeakMachine(4096, 4, 0), "IsWeakMachine: pocos núcleos, heap chico o poca RAM; sin datos de RAM no cuenta como justa");
+var v130Weak = JavaArgsBuilder.Build(2048, JavaFlavor.HotSpot, true, 2, 16384);
+Check(v130Weak.Contains("-XX:+UseSerialGC") && !v130Weak.Contains("-XX:+UseG1GC") && v130Weak.Contains("-Xmx2048M") && v130Weak.Contains("-Xms512M"), "PC justa: recolector serial y heap que arranca chico");
+var v130Strong = JavaArgsBuilder.Build(4096, JavaFlavor.GraalVM, true, 8, 16384);
+Check(v130Strong.Contains("-XX:+UseG1GC") && v130Strong.Contains("-XX:+IgnoreUnrecognizedVMOptions") && v130Strong.Contains("-XX:-UsePerfData") && !v130Strong.Contains("-XX:+UseSerialGC"), "PC con recursos: G1, ignora flags desconocidos y sin archivos de monitoreo");
+Check(!JavaArgsBuilder.Build(2048, JavaFlavor.OpenJ9, true, 2, 4096).Any(a => a.Contains("SerialGC") || a.Contains("UsePerfData")), "OpenJ9 no recibe flags -XX de HotSpot ni siquiera en una PC justa");
+
+// v1.3.0: cuentas del escalado por DPI
+Check(DpiMath.Scale(34, 96, 144) == 51 && DpiMath.Scale(30, 96, 120) == 38 && DpiMath.Scale(10, 96, 96) == 10 && DpiMath.Scale(0, 96, 192) == 0 && DpiMath.Scale(12, 0, 144) == 12,
+      "DpiMath.Scale: 150 % y 125 % (37,5 redondea a 38), sin cambios a 100 % y con DPI inválido");
+Check(DpiMath.FitRatio(1.5f, 800, 579, 1920, 1040) == 1.5f && System.Math.Abs(DpiMath.FitRatio(1.5f, 900, 1000, 1920, 1040) - 1.04f) < 0.001f
+      && DpiMath.FitRatio(1.5f, 2000, 1500, 1920, 1040) == 1f && DpiMath.FitRatio(0.67f, 1200, 868, 1920, 1040) == 0.67f,
+      "DpiMath.FitRatio: limita el agrandado a lo que entra en pantalla, nunca baja de 1 al agrandar y respeta el achicado");
+
+// v1.3.0: lo elegido en el primer inicio se respeta (la música apagada se volvía a activar por una migración vieja)
+if (PathService.DataDir.Contains("ServiceTests", StringComparison.OrdinalIgnoreCase))
+{
+    var settingsFile = Path.Combine(PathService.DataDir, "settings.json");
+    if (File.Exists(settingsFile)) File.Delete(settingsFile);
+    var firstRun = SettingsManager.Load();
+    firstRun.MusicEnabled = false; firstRun.ClickSoundEnabled = false; firstRun.ShowSplash = false;
+    SettingsManager.Save(firstRun);
+    var reloaded = SettingsManager.Load();
+    Check(!reloaded.MusicEnabled && !reloaded.ClickSoundEnabled && !reloaded.ShowSplash, "primer inicio: música, click y splash apagados se respetan al volver a cargar");
+    File.WriteAllText(settingsFile, "{ \"MusicEnabled\": false }");
+    Check(SettingsManager.Load().MusicEnabled, "una configuración vieja (sin la marca de migración) sigue pasando la música a activada una sola vez");
+    File.Delete(settingsFile);
+}
+
+// v1.3.0: analizador de crashes
+var crashNormal = CrashAnalyzer.Analyze("[Render thread/INFO]: Setting user: Player\n[Render thread/INFO]: Stopping!", null);
+Check(CrashAnalyzer.Analyze("C:\\java\\javaw.exe -Xmx2G -XX:+HeapDumpOnOutOfMemoryError -jar x\n[INFO] ok", null).Count == 0, "CrashAnalyzer: el flag HeapDumpOnOutOfMemoryError de la línea de comando no cuenta como un error");
+Check(crashNormal.Count == 0 && CrashAnalyzer.Analyze(null, null).Count == 0 && CrashAnalyzer.Analyze("", "").Count == 0, "CrashAnalyzer: un log normal (o vacío) no inventa causas");
+var crashOom = CrashAnalyzer.Analyze("Exception in thread \"main\" java.lang.OutOfMemoryError: Java heap space", null);
+Check(crashOom.Count == 1 && crashOom[0].Id == "oom" && crashOom[0].Detail == "", "CrashAnalyzer: OutOfMemoryError");
+var crashJava = CrashAnalyzer.Analyze("java.lang.UnsupportedClassVersionError: net/fabricmc/loader/Foo has been compiled by a more recent version of the Java Runtime (class file version 65.0), this version of the Java Runtime only recognizes class file versions up to 61.0", null);
+Check(crashJava.Count == 1 && crashJava[0].Id == "java_version" && crashJava[0].Detail == " (Java 21+)", "CrashAnalyzer: Java demasiado viejo (versión 65 = Java 21)");
+Check(CrashAnalyzer.JavaForClassVersion(52) == 8 && CrashAnalyzer.JavaForClassVersion(61) == 17 && CrashAnalyzer.JavaForClassVersion(65) == 21 && CrashAnalyzer.JavaForClassVersion(10) == 0, "CrashAnalyzer.JavaForClassVersion");
+var crashFabricDep = CrashAnalyzer.Analyze("- Mod 'Sodium' (sodium) 0.5.8 requires any version of mod 'Fabric API' (fabric-api), which is missing!\n- Mod 'Lithium' (lithium) 0.12 requires version 0.15.0 or later of mod 'Fabric Loader' (fabricloader), but only the wrong version is present: 0.14.25!", null);
+Check(crashFabricDep.Count == 1 && crashFabricDep[0].Id == "missing_dep" && crashFabricDep[0].Detail.Contains("Fabric API ← Sodium") && crashFabricDep[0].Detail.Contains("Fabric Loader ← Lithium"), "CrashAnalyzer: dependencias que faltan en Fabric");
+var crashForgeDep = CrashAnalyzer.Analyze("Missing or unsupported mandatory dependencies:\n\tMod ID: 'geckolib', Requested by: 'alexsmobs', Expected range: '[4.4,)', Actual version: '[MISSING]'", null);
+Check(crashForgeDep.Count == 1 && crashForgeDep[0].Id == "missing_dep" && crashForgeDep[0].Detail == " (geckolib ← alexsmobs)", "CrashAnalyzer: dependencias que faltan en Forge");
+var crashJvm = CrashAnalyzer.Analyze("Unrecognized VM option 'UseFooGC'\nError: Could not create the Java Virtual Machine.\nError: A fatal exception has occurred. Program will exit.", null);
+Check(crashJvm.Count == 1 && crashJvm[0].Id == "jvm_args" && crashJvm[0].Detail == " (UseFooGC)", "CrashAnalyzer: argumento de JVM no reconocido (no se confunde con la memoria)");
+var crashHeap = CrashAnalyzer.Analyze("Error occurred during initialization of VM\nCould not reserve enough space for 8388608KB object heap\nError: Could not create the Java Virtual Machine.", null);
+Check(crashHeap.Count == 1 && crashHeap[0].Id == "heap", "CrashAnalyzer: no hay memoria para reservar el heap");
+var crashMixin = CrashAnalyzer.Analyze("Mixin apply for mod sodium failed sodium.mixins.json:core.Foo from mod sodium -> net.minecraft.Bar: InvalidMixinException", null);
+Check(crashMixin.Count == 1 && crashMixin[0].Id == "mod" && crashMixin[0].Detail == " (sodium)", "CrashAnalyzer: mixin de un mod que falla, con el mod sospechoso");
+var crashGpu = CrashAnalyzer.Analyze("GLFW error 65542: WGL: The driver does not appear to support OpenGL", null);
+Check(crashGpu.Count == 1 && crashGpu[0].Id == "gpu", "CrashAnalyzer: OpenGL / placa de video");
+var crashMany = CrashAnalyzer.Analyze("OutOfMemoryError\nUnsatisfiedLinkError\nNo space left on device\nGLFW error 65542\nDuplicate mod found\nNoClassDefFoundError: a/b/C", "");
+Check(crashMany.Count == 4 && crashMany[0].Id == "oom", "CrashAnalyzer: devuelve como mucho 4 causas, las más específicas primero");
+var crashTmp = Path.Combine(Path.GetTempPath(), "velin-crash-" + Guid.NewGuid().ToString("N") + ".log");
+File.WriteAllText(crashTmp, new string('x', 5000) + "FINAL");
+Check(CrashAnalyzer.ReadTailText(crashTmp, 100).EndsWith("FINAL") && CrashAnalyzer.ReadTailText(crashTmp, 100).Length <= 100 && CrashAnalyzer.ReadTailText(crashTmp + ".no", 100) == "", "CrashAnalyzer.ReadTailText lee sólo el final y tolera archivos que no existen");
+File.Delete(crashTmp);
+
+// v1.3.0: capas, historial de skins y actualización de modpacks de CurseForge
+var capesJson = "{\"id\":\"x\",\"skins\":[],\"capes\":[{\"id\":\"c1\",\"state\":\"ACTIVE\",\"url\":\"http://textures.minecraft.net/texture/a\",\"alias\":\"Migrator\"},{\"id\":\"c2\",\"state\":\"INACTIVE\",\"url\":\"http://textures.minecraft.net/texture/b\",\"alias\":\"Vanilla\"},{\"state\":\"INACTIVE\"}]}";
+var v130Capes = MojangSkinService.ParseProfileCapes(capesJson);
+Check(v130Capes.Count == 2 && v130Capes[0].Id == "c1" && v130Capes[0].Active && v130Capes[0].Alias == "Migrator" && !v130Capes[1].Active && v130Capes[1].ToString() == "Vanilla" && v130Capes[1].Url.EndsWith("/b"),
+      "MojangSkinService.ParseProfileCapes: capas con su estado y nombre (ignora las que no tienen id)");
+Check(MojangSkinService.ParseProfileCapes("{\"id\":\"x\"}").Count == 0 && MojangSkinService.ParseProfileCapes("no es json").Count == 0, "MojangSkinService.ParseProfileCapes: sin capas o con basura devuelve una lista vacía");
+
+if (PathService.DataDir.Contains("ServiceTests", StringComparison.OrdinalIgnoreCase))
+{
+    foreach (var v130Stale in SkinLibrary.List().ToList()) SkinLibrary.Remove(v130Stale.Id);
+    var h1 = SkinLibrary.AddHistory(V111Png(64, 64, 1), false);
+    Check(h1 != null && h1.Auto && SkinLibrary.AddHistory(V111Png(64, 64, 1), false) == null, "SkinLibrary.AddHistory: guarda la skin reemplazada y no repite la misma imagen");
+    for (int i = 2; i <= SkinLibrary.MaxHistory + 5; i++) SkinLibrary.AddHistory(V111Png(64, 64, i), i % 2 == 0);
+    var v130Hist = SkinLibrary.List().Where(e => e.Auto).ToList();
+    Check(v130Hist.Count == SkinLibrary.MaxHistory, "SkinLibrary.AddHistory: sólo se conservan las MaxHistory más nuevas");
+    var v130User = SkinLibrary.Add("Mía", V111Png(64, 64, 500), false);
+    Check(SkinLibrary.List().First().Id == v130User.Id && !v130User.Auto, "SkinLibrary.List: las skins del usuario van antes que el historial");
+    foreach (var v130Stale in SkinLibrary.List().ToList()) SkinLibrary.Remove(v130Stale.Id);
+}
+
+Check(CurseForgeService.RelativePathFor(new CfFile { FileName = "sodium-1.jar" }, CurseForgeService.ClassMods) == "mods/sodium-1.jar"
+      && CurseForgeService.RelativePathFor(new CfFile { FileName = "pack.zip" }, CurseForgeService.ClassResourcePacks) == "resourcepacks/pack.zip"
+      && CurseForgeService.RelativePathFor(new CfFile { FileName = "s.zip" }, CurseForgeService.ClassShaders) == "shaderpacks/s.zip"
+      && CurseForgeService.RelativePathFor(new CfFile { FileName = "x.jar" }, 999) == "mods/x.jar", "CurseForgeService.RelativePathFor: carpeta según el tipo de contenido (mods por defecto)");
+using (var cfDoc = JsonDocument.Parse("{\"name\":\"Mi Pack\",\"overrides\":\"ov\",\"minecraft\":{\"version\":\"1.20.1\",\"modLoaders\":[{\"id\":\"fabric-0.15.0\"},{\"id\":\"forge-47.2.0\",\"primary\":true}]},\"files\":[{\"projectID\":1,\"fileID\":2,\"required\":true},{\"projectID\":3,\"fileID\":4,\"required\":false},{\"projectID\":5,\"fileID\":6}]}"))
+{
+    var cfManifest = CurseForgeService.ParseManifest(cfDoc.RootElement);
+    Check(cfManifest.Mc == "1.20.1" && cfManifest.Name == "Mi Pack" && cfManifest.Overrides == "ov" && cfManifest.Loader == ModLoaderType.Forge && cfManifest.LoaderVersion == "47.2.0"
+          && cfManifest.FileRefs.Count == 2 && cfManifest.FileRefs[0] == (1, 2) && cfManifest.FileRefs[1] == (5, 6), "CurseForgeService.ParseManifest: versión, loader principal, overrides y archivos (omite los opcionales)");
+}
+using (var cfNoMc = JsonDocument.Parse("{\"name\":\"x\",\"files\":[]}"))
+{
+    bool v130Threw = false;
+    try { CurseForgeService.ParseManifest(cfNoMc.RootElement); } catch (InvalidDataException) { v130Threw = true; }
+    Check(v130Threw, "CurseForgeService.ParseManifest: sin versión de Minecraft avisa con un error claro");
+}
+var v130ZipPath = Path.Combine(tmp, "overrides-test.zip");
+using (var zfs = File.Create(v130ZipPath))
+using (var zw = new ZipArchive(zfs, ZipArchiveMode.Create))
+{
+    foreach (var v130Entry in new[] { "manifest.json", "overrides/config/a.toml", "overrides/mods/x.jar", "overrides/", "otra/cosa.txt" })
+    {
+        var v130Zip = zw.CreateEntry(v130Entry);
+        if (!v130Entry.EndsWith('/')) { using var v130W = new StreamWriter(v130Zip.Open()); v130W.Write("x"); }
+    }
+}
+using (var zr = ZipFile.OpenRead(v130ZipPath))
+{
+    Check(ModpackImporter.ListOverrides(zr, "overrides/").SequenceEqual(new[] { "config/a.toml", "mods/x.jar" }) && ModpackImporter.ListOverrides(zr, "ov/").Count == 0, "ModpackImporter.ListOverrides: rutas relativas de los archivos de la carpeta de overrides");
+    var v130Paths = CurseForgeService.PackFilePaths(
+        new[] { new CfFile { ModId = 10, FileName = "a.jar" }, new CfFile { ModId = 11, FileName = "rp.zip" }, new CfFile { ModId = 10, FileName = "A.JAR" } },
+        new Dictionary<int, CfMod> { [11] = new CfMod { Id = 11, ClassId = CurseForgeService.ClassResourcePacks } }, zr, "overrides");
+    Check(v130Paths.SequenceEqual(new[] { "mods/a.jar", "resourcepacks/rp.zip", "config/a.toml", "mods/x.jar" }), "CurseForgeService.PackFilePaths: archivos del pack y overrides, sin repetidos");
+}
+var v130Cf = new Instance { Name = "CfUpdTest-" + Guid.NewGuid().ToString("N").Substring(0, 6), ModpackSource = "curseforge", ModpackProjectId = "123" };
+Check(!ModpackUpdater.CanUpdate(v130Cf), "ModpackUpdater: un modpack de CurseForge sin lista de archivos no se puede actualizar");
+Directory.CreateDirectory(v130Cf.InstanceDir);
+ModpackImporter.WriteFileList(v130Cf, new List<string> { "mods/a.jar" });
+Check(ModpackUpdater.CanUpdate(v130Cf), "ModpackUpdater: un modpack de CurseForge con lista de archivos sí se puede actualizar");
+v130Cf.ModpackSource = "otro";
+Check(!ModpackUpdater.CanUpdate(v130Cf), "ModpackUpdater: sólo Modrinth y CurseForge se pueden actualizar");
+try { Directory.Delete(v130Cf.InstanceDir, true); } catch { }
 
 // --- Filtros del buscador
 Check(ContentSources.ModrinthSortIndex(ContentSort.Relevance) == "relevance" && ContentSources.ModrinthSortIndex(ContentSort.Downloads) == "downloads"

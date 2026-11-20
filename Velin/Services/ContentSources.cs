@@ -241,7 +241,7 @@ namespace Velin.Services
             finally { try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { } }
         }
 
-        // Baja la versión elegida de un modpack de Modrinth y la aplica SOBRE la instancia existente
+        // Baja la versión elegida de un modpack (Modrinth o CurseForge) y la aplica SOBRE la instancia existente
         // (mundos, configuración y mods propios se conservan). Ver ModpackUpdater.
         public static async Task UpdateModpackAsync(Instance instance, ContentVersion version, IProgress<string>? progress,
             IProgress<double>? percent, Action<string>? onWarning)
@@ -253,7 +253,10 @@ namespace Velin.Services
             {
                 progress?.Report($"Descargando {version.Name}...");
                 await DownloadAsync(version, zipPath);
-                await ModpackUpdater.ApplyMrpackAsync(instance, zipPath, version, progress, percent, onWarning);
+                if (version.Source == ContentSource.CurseForge)
+                    await ModpackUpdater.ApplyCurseForgeAsync(instance, zipPath, version, CurseForgeApi.FromSettings(), progress, percent, onWarning);
+                else
+                    await ModpackUpdater.ApplyMrpackAsync(instance, zipPath, version, progress, percent, onWarning);
             }
             finally { try { if (File.Exists(zipPath)) File.Delete(zipPath); } catch { } }
         }

@@ -32,13 +32,24 @@ namespace Velin.Services
             _ => i.ModsDir
         };
 
+        // Carpeta (relativa a la carpeta del juego) donde va cada tipo de contenido.
+        public static string RelativeFolderFor(int classId) => classId switch
+        {
+            ClassResourcePacks => "resourcepacks",
+            ClassShaders => "shaderpacks",
+            _ => "mods"
+        };
+
+        // Ruta relativa (con "/") donde queda un archivo del modpack: la misma que se guarda en modpack-files.json.
+        public static string RelativePathFor(CfFile f, int classId) => RelativeFolderFor(classId) + "/" + ContentService.SafeFileName(f.FileName);
+
         // Prefiere versiones estables (release) sobre beta/alpha y, dentro de cada tipo, la más nueva.
         public static CfFile? PickBest(IEnumerable<CfFile> files) =>
             files.OrderBy(f => f.ReleaseType == 1 ? 0 : f.ReleaseType == 2 ? 1 : 2).ThenByDescending(f => f.FileDate).FirstOrDefault();
 
-        private static string? Sha1Of(CfFile f) => f.Hashes.FirstOrDefault(h => h.Algo == 1)?.Value;
+        internal static string? Sha1Of(CfFile f) => f.Hashes.FirstOrDefault(h => h.Algo == 1)?.Value;
 
-        private static async Task<string> ResolveUrlAsync(CurseForgeApi api, CfFile file, string? websiteUrl)
+        internal static async Task<string> ResolveUrlAsync(CurseForgeApi api, CfFile file, string? websiteUrl)
         {
             var url = file.DownloadUrl ?? await api.GetDownloadUrlAsync(file.ModId, file.Id);
             if (url == null)
@@ -118,43 +129,87 @@ namespace Velin.Services
             };
         }
 
+        // Lo que importa del manifest.json de un modpack de CurseForge.
+        internal sealed record CfManifest(string Mc, string Name, string Overrides, ModLoaderType Loader, string? LoaderVersion, List<(int project, int file)> FileRefs);
+
+        internal static async Task<CfManifest> ReadManifestAsync(ZipArchive zip)
+        {
+            var entry = zip.GetEntry("manifest.json")
+                ?? throw new InvalidDataException("Este .zip no es un modpack de CurseForge: falta manifest.json.");
+            using var s = entry.Open();
+            using var doc = await JsonDocument.ParseAsync(s);
+            return ParseManifest(doc.RootElement);
+        }
+
+        internal static CfManifest ParseManifest(JsonElement root)
+        {
+            if (!root.TryGetProperty("minecraft", out var m) || !m.TryGetProperty("version", out var v) || string.IsNullOrWhiteSpace(v.GetString()))
+                throw new InvalidDataException("El modpack no indica la versión de Minecraft.");
+            var mc = v.GetString()!;
+            var name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+            var overrides = "overrides";
+            if (root.TryGetProperty("overrides", out var ov) && !string.IsNullOrWhiteSpace(ov.GetString())) overrides = ov.GetString()!;
+
+            ModLoaderType loader = ModLoaderType.Vanilla; string? loaderVersion = null;
+            if (m.TryGetProperty("modLoaders", out var loaders) && loaders.ValueKind == JsonValueKind.Array && loaders.GetArrayLength() > 0)
+            {
+                JsonElement chosen = loaders[0];
+                foreach (var l in loaders.EnumerateArray())
+                    if (l.TryGetProperty("primary", out var p) && p.ValueKind == JsonValueKind.True) { chosen = l; break; }
+                (loader, loaderVersion) = ParseLoaderId(chosen.TryGetProperty("id", out var idEl) ? idEl.GetString() : null);
+            }
+
+            var fileRefs = new List<(int project, int file)>();
+            if (root.TryGetProperty("files", out var files) && files.ValueKind == JsonValueKind.Array)
+                foreach (var f in files.EnumerateArray())
+                {
+                    // "required: false" son opcionales: se omiten.
+                    if (f.TryGetProperty("required", out var req) && req.ValueKind == JsonValueKind.False) continue;
+                    if (f.TryGetProperty("projectID", out var pid) && f.TryGetProperty("fileID", out var fid))
+                        fileRefs.Add((pid.GetInt32(), fid.GetInt32()));
+                }
+            return new CfManifest(mc, name, overrides, loader, loaderVersion, fileRefs);
+        }
+
+        // Datos de los archivos y de los mods del manifest (la API de CurseForge acepta 50 por consulta).
+        internal static async Task<List<CfFile>> GetFileInfosAsync(CurseForgeApi api, IEnumerable<(int project, int file)> fileRefs)
+        {
+            var fileInfos = new List<CfFile>();
+            foreach (var chunk in fileRefs.Select(r => r.file).Distinct().Chunk(50))
+                fileInfos.AddRange(await api.GetFilesByIdsAsync(chunk.ToList()));
+            return fileInfos;
+        }
+
+        internal static async Task<Dictionary<int, CfMod>> GetModInfosAsync(CurseForgeApi api, IEnumerable<CfFile> fileInfos)
+        {
+            var modInfos = new Dictionary<int, CfMod>();
+            foreach (var chunk in fileInfos.Select(f => f.ModId).Distinct().Chunk(50))
+                foreach (var mod in await api.GetModsByIdsAsync(chunk.ToList())) modInfos[mod.Id] = mod;
+            return modInfos;
+        }
+
+        // Todas las rutas que trae el pack (archivos de CurseForge y overrides), para modpack-files.json.
+        internal static List<string> PackFilePaths(IEnumerable<CfFile> files, IReadOnlyDictionary<int, CfMod> mods, ZipArchive zip, string overridesFolder)
+        {
+            var list = new List<string>();
+            foreach (var f in files)
+            {
+                mods.TryGetValue(f.ModId, out var info);
+                list.Add(RelativePathFor(f, info?.ClassId ?? ClassMods));
+            }
+            list.AddRange(ModpackImporter.ListOverrides(zip, overridesFolder.TrimEnd('/') + "/"));
+            return list.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
         public static async Task<Instance> ImportModpackAsync(string zipPath, CurseForgeApi api, IProgress<string>? progress = null,
             IProgress<double>? percent = null, Action<string>? onWarning = null)
         {
             using var zip = ZipFile.OpenRead(zipPath);
-            var manifestEntry = zip.GetEntry("manifest.json")
-                ?? throw new InvalidDataException("Este .zip no es un modpack de CurseForge: falta manifest.json.");
-
-            string mc, name, overrides = "overrides";
-            ModLoaderType loader = ModLoaderType.Vanilla; string? loaderVersion = null;
-            var fileRefs = new List<(int project, int file)>();
-            using (var s = manifestEntry.Open())
-            using (var doc = await JsonDocument.ParseAsync(s))
-            {
-                var root = doc.RootElement;
-                if (!root.TryGetProperty("minecraft", out var m) || !m.TryGetProperty("version", out var v) || string.IsNullOrWhiteSpace(v.GetString()))
-                    throw new InvalidDataException("El modpack no indica la versión de Minecraft.");
-                mc = v.GetString()!;
-                name = root.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                if (root.TryGetProperty("overrides", out var ov) && !string.IsNullOrWhiteSpace(ov.GetString())) overrides = ov.GetString()!;
-
-                if (m.TryGetProperty("modLoaders", out var loaders) && loaders.ValueKind == JsonValueKind.Array && loaders.GetArrayLength() > 0)
-                {
-                    JsonElement chosen = loaders[0];
-                    foreach (var l in loaders.EnumerateArray())
-                        if (l.TryGetProperty("primary", out var p) && p.ValueKind == JsonValueKind.True) { chosen = l; break; }
-                    (loader, loaderVersion) = ParseLoaderId(chosen.TryGetProperty("id", out var idEl) ? idEl.GetString() : null);
-                }
-
-                if (root.TryGetProperty("files", out var files) && files.ValueKind == JsonValueKind.Array)
-                    foreach (var f in files.EnumerateArray())
-                    {
-                        // "required: false" son opcionales: se omiten.
-                        if (f.TryGetProperty("required", out var req) && req.ValueKind == JsonValueKind.False) continue;
-                        if (f.TryGetProperty("projectID", out var pid) && f.TryGetProperty("fileID", out var fid))
-                            fileRefs.Add((pid.GetInt32(), fid.GetInt32()));
-                    }
-            }
+            var manifest = await ReadManifestAsync(zip);
+            string mc = manifest.Mc, name = manifest.Name, overrides = manifest.Overrides;
+            ModLoaderType loader = manifest.Loader;
+            string? loaderVersion = manifest.LoaderVersion;
+            var fileRefs = manifest.FileRefs;
 
             PathService.EnsureAll();
             var settings = SettingsManager.Load();
@@ -173,13 +228,8 @@ namespace Velin.Services
             try
             {
                 progress?.Report("Consultando los archivos del modpack en CurseForge...");
-                var fileInfos = new List<CfFile>();
-                foreach (var chunk in fileRefs.Select(r => r.file).Distinct().Chunk(50))
-                    fileInfos.AddRange(await api.GetFilesByIdsAsync(chunk.ToList()));
-
-                var modInfos = new Dictionary<int, CfMod>();
-                foreach (var chunk in fileInfos.Select(f => f.ModId).Distinct().Chunk(50))
-                    foreach (var mod in await api.GetModsByIdsAsync(chunk.ToList())) modInfos[mod.Id] = mod;
+                var fileInfos = await GetFileInfosAsync(api, fileRefs);
+                var modInfos = await GetModInfosAsync(api, fileInfos);
 
                 int total = fileInfos.Count, done = 0;
                 var failures = new ConcurrentBag<string>();
@@ -212,6 +262,8 @@ namespace Velin.Services
 
                 progress?.Report("Copiando configuración y archivos incluidos en el modpack...");
                 ModpackImporter.ExtractOverrides(zip, overrides.TrimEnd('/') + "/", instance.GameDir);
+                // Se recuerdan las rutas del pack para poder actualizarlo después (ver ModpackUpdater).
+                ModpackImporter.WriteFileList(instance, PackFilePaths(fileInfos, modInfos, zip, overrides));
                 percent?.Report(1.0);
 
                 if (!failures.IsEmpty)

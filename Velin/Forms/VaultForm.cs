@@ -66,6 +66,7 @@ namespace Velin.Forms
             _list.SetBounds(12, 44, 536, 320);
             _list.DragEnter += ListDragEnter;
             _list.DragDrop += ListDragDrop;
+            _list.ItemDrag += ListItemDrag;
             _list.MouseUp += ListMouseUp;
             _list.DoubleClick += (s, e) => OpenOrEnterSelected();
             Content.Controls.Add(_list);
@@ -430,13 +431,33 @@ namespace Velin.Forms
             try { File.Copy(src, dest, true); } catch { }
         }
 
+        // Arrastrar archivos y carpetas de la Vault hacia afuera (Explorador, Escritorio, otra ventana...). Se ofrece sólo "copiar",
+        // así que la Vault no pierde nada, y si el destino ya tiene un archivo con ese nombre es el propio Explorador de Windows el
+        // que pregunta si se reemplaza, se omite o se conservan los dos.
+        private bool _draggingOut;
+
+        private void ListItemDrag(object? sender, ItemDragEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left) return;
+            var paths = GetSelectedPaths();
+            if (paths.Length == 0) return;
+
+            _draggingOut = true;
+            try { _list.DoDragDrop(new DataObject(DataFormats.FileDrop, paths), DragDropEffects.Copy); }
+            catch { /* si el destino falla no pasa nada: los archivos siguen en la Vault */ }
+            finally { _draggingOut = false; }
+        }
+
         private void ListDragEnter(object? sender, DragEventArgs e)
         {
+            // Lo que se arrastra desde esta misma lista no se suelta sobre ella (sería copiar un archivo encima de sí mismo).
+            if (_draggingOut) { e.Effect = DragDropEffects.None; return; }
             e.Effect = e.Data != null && e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
         }
 
         private void ListDragDrop(object? sender, DragEventArgs e)
         {
+            if (_draggingOut) return;
             if (e.Data == null || !e.Data.GetDataPresent(DataFormats.FileDrop)) return;
             var files = (string[])e.Data.GetData(DataFormats.FileDrop)!;
             foreach (var f in files)

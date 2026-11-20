@@ -21,6 +21,18 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 > son de Brhenja; el código lo escribió **Claude**, la IA de Anthropic. Los recursos (música, sonido de click, mascota
 > del tema Flash e ícono) también los generó una IA.
 
+## Novedades de la versión 1.3.0
+
+- **Analizador de crashes:** si Minecraft se cierra con error, Velin te muestra las **causas probables** (Java muy
+  viejo, falta de memoria, dependencias de mods que faltan, mods duplicados, problemas de la placa de video, etc.) y
+  qué hacer.
+- **Capas** de tu cuenta Microsoft (con vista previa) e **historial de skins** automático.
+- **Actualizar modpacks de CurseForge**, además de los de Modrinth.
+- **Escalado HiDPI:** las ventanas se adaptan a pantallas con escala de 125 %, 150 % y más.
+- **Vault:** arrastrá archivos y carpetas **hacia afuera** (se copian; Windows pregunta si hay que reemplazar).
+- **Menos consumo** (memoria liberada al minimizar y mientras jugás) y **flags de Java** más cuidadosos para PCs justas.
+- El asistente de primer inicio arranca en el idioma de Windows, y varios arreglos (ver [CHANGELOG.md](CHANGELOG.md)).
+
 ## Novedades de la versión 1.2.0
 
 - **Un solo `Velin.exe`:** el programa se publica en un único ejecutable (con la carpeta `Assets\` al lado); el portable
@@ -71,8 +83,9 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 - El instalador **no está firmado digitalmente** (la firma gratuita para proyectos de código abierto todavía no se aprobó):
   Windows SmartScreen puede mostrar un aviso ("Windows protegió tu PC"). Se puede continuar con *Más información →
   Ejecutar de todas formas*; podés comprobar el archivo con el SHA256 de `SHA256SUMS.txt`.
-- **Actualizar modpacks** funciona solo con modpacks de **Modrinth** instalados desde Velin 1.2.0 o posterior; los de
-  CurseForge todavía no.
+- **Actualizar modpacks** funciona con modpacks de **Modrinth** instalados desde Velin 1.2.0 y de **CurseForge**
+  instalados desde Velin 1.3.0 (los de CurseForge además necesitan tu clave de API).
+- Las **capas** y la actualización de modpacks de CurseForge solo se probaron de forma limitada.
 - Las traducciones (salvo español e inglés) no las revisaron hablantes nativos: si ves un error, avisá en un
   [issue](https://github.com/Brhenja/Velin/issues).
 
@@ -105,8 +118,8 @@ ni muevas la carpeta `Assets\`** que está junto al `.exe`: tiene las fuentes, l
 1. Tocá **Nueva instancia** (`Ctrl+N`): elegí nombre, versión de Minecraft, mod loader (o Vanilla) y RAM.
 2. Tocá **Jugar** (`Enter`). La primera vez descarga todo (Java, librerías y assets) con barra de progreso y botón
    **Cancelar**; después arranca directo.
-3. Si Minecraft se cierra con error, aparece una ventana con las últimas líneas del log y botones para abrir el log
-   completo, el crash report o copiar el texto.
+3. Si Minecraft se cierra con error, aparece una ventana con las **causas probables**, las últimas líneas del log y
+   botones para abrir el log completo, el crash report o copiar el texto.
 
 **Mods y contenido**
 - El botón **Mods y contenido** abre un panel por instancia con mods, modpacks, mundos, servidores, resource packs,
@@ -124,7 +137,7 @@ ni muevas la carpeta `Assets\`** que está junto al `.exe`: tiene las fuentes, l
 **Cuentas**
 - Desde **Cuentas** podés **iniciar sesión con Microsoft** (se abre el navegador; la sesión se guarda cifrada con DPAPI
   y se renueva sola) o crear cuentas offline (nombre libre). Elegís una por defecto o una por instancia.
-- **Skins...** abre el gestor de skins de la cuenta elegida (ver arriba). La biblioteca vive en `data\skins`.
+- **Skins...** abre el gestor de skins de la cuenta elegida (ver arriba), con las **capas** y el historial de skins. La biblioteca vive en `data\skins`.
 
 **.jar propio**
 1. Creá una carpeta dentro de `data\instances\` (por ejemplo `data\instances\Mi cliente`).
@@ -147,7 +160,7 @@ Sin key, Modrinth sigue funcionando normal.
 - Exportar e importar: `.zip` de Velin, `.mrpack` de Modrinth y `.zip` de CurseForge. También se pueden **importar
   instancias de otros launchers** (Prism / MultiMC / PolyMC, app de CurseForge y `.minecraft`): **Importar... → De otro
   launcher**. Se copian los archivos y los originales no se tocan.
-- **Actualizar modpack** (Modrinth) desde el menú de la instancia, y **Crear acceso directo...** para abrir Velin y jugar
+- **Actualizar modpack** (Modrinth y CurseForge) desde el menú de la instancia, y **Crear acceso directo...** para abrir Velin y jugar
   una instancia con un clic.
 - Grupos con filtro, orden por nombre / última vez jugada / tiempo jugado, y tiempo jugado por instancia.
 - Cambiar la versión o el loader de una instancia conservando mundos, mods y configuración.
@@ -178,7 +191,7 @@ elige por defecto la estable más nueva.
 - **Servidores:** lista con estado en vivo y entrada directa.
 - **Capturas de pantalla** con miniaturas.
 - **Vault:** explorador de archivos propio con subcarpetas, arrastrar y soltar, cortar/copiar/pegar y extracción de
-  `.zip`, `.7z` y `.rar`; más un Vault de mods por instancia.
+  `.zip`, `.7z` y `.rar`, y arrastrar archivos hacia afuera (se copian); más un Vault de mods por instancia.
 
 **Interfaz**
 - Ventana propia sin bordes de Windows, temas JSON (Velin medieval, Flash y **Black & White** oscuro y claro),

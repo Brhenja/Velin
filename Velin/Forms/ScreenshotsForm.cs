@@ -130,7 +130,8 @@ namespace Velin.Forms
             try
             {
                 using var img = Image.FromFile(p);
-                Clipboard.SetImage(new Bitmap(img));
+                using var copy = new Bitmap(img);
+                Clipboard.SetImage(copy);
                 _status.Text = Localization.T("ss_copied");
             }
             catch (Exception ex) { _status.Text = ex.Message; }

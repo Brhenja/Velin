@@ -155,19 +155,22 @@ namespace Velin.Forms
             _status.SetBounds(12, 486, 500, 40);
             Content.Controls.Add(_status);
 
-            // Mascota animada: sólo decora el tema Flash, en el hueco vacío que queda
-            // debajo de los botones.
+            // Mascota animada: sólo decora el tema Flash, en el hueco vacío que queda debajo de los botones.
+            // El GIF se carga recién cuando el tema Flash está en uso (ver UpdateGifVisibility).
             _gifCorner.SetBounds(500, 344, 130, 84);
-            try
-            {
-                var gifPath = Path.Combine(AppContext.BaseDirectory, "Assets", "flash_mascot.gif");
-                if (File.Exists(gifPath)) _gifCorner.Image = System.Drawing.Image.FromFile(gifPath);
-            }
-            catch { /* si falla, simplemente no se muestra */ }
             Content.Controls.Add(_gifCorner);
             _gifCorner.BringToFront();
 
             Load += (s, e) => { Reload(); UpdateGifVisibility(); };
+            // Con la ventana minimizada no hace falta animar nada ni guardar memoria de más.
+            var lastState = WindowState;
+            SizeChanged += (s, e) =>
+            {
+                if (WindowState == lastState) return;
+                lastState = WindowState;
+                UpdateGifVisibility();
+                if (WindowState == FormWindowState.Minimized) _ = Task.Run(MemoryTrimmer.Trim);
+            };
             // Después de abrir: jugar directo si vino de un acceso directo (--jugar) y, si no, buscar actualizaciones.
             Shown += async (s, e) =>
             {
@@ -214,11 +217,27 @@ namespace Velin.Forms
             if (index >= 0) _list.SelectedIndex = index;
         }
 
-        // El GIF animado sólo tiene sentido con la estética "Flash" — con el tema
-        // medieval queda oculto.
+        // El GIF animado sólo tiene sentido con la estética "Flash". Con otro tema ni siquiera se carga (o se
+        // libera si ya estaba), y con la ventana minimizada se esconde para que no siga animándose.
         private void UpdateGifVisibility()
         {
-            _gifCorner.Visible = Theme.Current.Name.Contains("Flash", StringComparison.OrdinalIgnoreCase);
+            bool flash = Theme.Current.Name.Contains("Flash", StringComparison.OrdinalIgnoreCase);
+            if (flash && _gifCorner.Image == null)
+            {
+                try
+                {
+                    var gifPath = Path.Combine(AppContext.BaseDirectory, "Assets", "flash_mascot.gif");
+                    if (File.Exists(gifPath)) _gifCorner.Image = System.Drawing.Image.FromFile(gifPath);
+                }
+                catch { /* si falla, simplemente no se muestra */ }
+            }
+            else if (!flash && _gifCorner.Image != null)
+            {
+                var old = _gifCorner.Image;
+                _gifCorner.Image = null;
+                old.Dispose();
+            }
+            _gifCorner.Visible = flash && _gifCorner.Image != null && WindowState != FormWindowState.Minimized;
         }
 
         private void OnSortChanged()
@@ -413,8 +432,8 @@ namespace Velin.Forms
             var old = _accountFace.Image;
             _accountFace.Image = bmp;
             _accountFace.Visible = bmp != null;
-            _accountLabel.Left = bmp != null ? 50 : 12;
-            _accountLabel.Width = bmp != null ? 262 : 300;
+            _accountLabel.Left = DpiScaler.Px(this, bmp != null ? 50 : 12);
+            _accountLabel.Width = DpiScaler.Px(this, bmp != null ? 262 : 300);
             old?.Dispose();
         }
 
@@ -752,6 +771,8 @@ namespace Velin.Forms
                     Hide();
                 }
                 SoundManager.StopMusic();
+                // El launcher queda sin hacer nada mientras se juega: se le devuelve a Windows la memoria que no usa.
+                _ = Task.Run(async () => { await Task.Delay(4000); MemoryTrimmer.Trim(); });
                 await mcProcess.WaitForExitAsync();
             }
             catch { /* si algo falla monitoreando el proceso, igual lo mostramos de nuevo abajo */ }
@@ -786,8 +807,14 @@ namespace Velin.Forms
             var tail = LaunchLog.ReadTail(logPath, 60);
             if (string.IsNullOrWhiteSpace(tail)) tail = Localization.T("crash_no_log");
 
-            using var form = new CrashReportForm(Localization.T("crash_message", exitCode), tail, logPath,
-                FindLatestCrashReport(inst, launchStarted));
+            var crashReport = FindLatestCrashReport(inst, launchStarted);
+            // El análisis lee hasta ~600 KB de log y ~300 KB de crash report: fuera del hilo de la interfaz.
+            var causes = await Task.Run(() => CrashAnalyzer
+                .Analyze(CrashAnalyzer.ReadTailText(logPath, 600_000), CrashAnalyzer.ReadTailText(crashReport, 300_000))
+                .Select(f => Localization.T("crash_cause_" + f.Id, f.Detail))
+                .ToList());
+
+            using var form = new CrashReportForm(Localization.T("crash_message", exitCode), causes, tail, logPath, crashReport);
             form.ShowDialog(this);
         }
 

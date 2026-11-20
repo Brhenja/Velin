@@ -9,7 +9,7 @@ using Velin.UI;
 
 namespace Velin.Forms
 {
-    // Actualizar un modpack de Modrinth instalado a otra versión, conservando mundos y configuración.
+    // Actualizar un modpack de Modrinth o de CurseForge instalado a otra versión, conservando mundos y configuración.
     public class ModpackUpdateForm : VelinFormBase
     {
         private readonly Instance _instance;
@@ -55,7 +55,7 @@ namespace Velin.Forms
             foreach (Control c in new Control[] { _info, _versions, _note, _status, _progress, _update, _close }) Content.Controls.Add(c);
 
             Theme.Apply(this);
-            _note.Font = new System.Drawing.Font("Segoe UI", 8f, System.Drawing.FontStyle.Italic);
+            _note.Font = Theme.PlainFont(8f, System.Drawing.FontStyle.Italic);
             Shown += async (s, e) => await LoadVersionsAsync();
         }
 
@@ -64,7 +64,8 @@ namespace Velin.Forms
             _status.Text = Localization.T("mpu_loading");
             try
             {
-                var versions = await ContentSources.GetVersionsAsync(ContentSource.Modrinth, ContentType.ModPack, _instance.ModpackProjectId, null);
+                var source = _instance.ModpackSource == "curseforge" ? ContentSource.CurseForge : ContentSource.Modrinth;
+                var versions = await ContentSources.GetVersionsAsync(source, ContentType.ModPack, _instance.ModpackProjectId, null);
                 if (IsDisposed) return;
                 foreach (var v in versions.Take(40)) _versions.Items.Add(new Item(v, v.Id == _instance.ModpackVersionId));
                 if (_versions.Items.Count > 0)

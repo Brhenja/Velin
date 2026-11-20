@@ -125,6 +125,20 @@ namespace Velin.Services
             return list.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         }
 
+        // Rutas (relativas a la carpeta del juego) de los archivos que un modpack trae dentro de una carpeta de overrides.
+        internal static List<string> ListOverrides(ZipArchive zip, string prefix)
+        {
+            var list = new List<string>();
+            foreach (var entry in zip.Entries)
+            {
+                var full = entry.FullName.Replace('\\', '/');
+                if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                var rel = full.Substring(prefix.Length);
+                if (rel.Length > 0 && !rel.EndsWith('/')) list.Add(rel);
+            }
+            return list;
+        }
+
         public static string FileListPath(Instance instance) => System.IO.Path.Combine(instance.InstanceDir, "modpack-files.json");
 
         internal static void WriteFileList(Instance instance, List<string> files)

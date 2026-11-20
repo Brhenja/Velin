@@ -44,6 +44,15 @@ namespace Velin.Forms
         private readonly Label _hint = new() { AutoSize = false };
         private readonly Label _status = new() { AutoSize = false };
 
+        // Capas (sólo cuentas Microsoft)
+        private readonly Label _lblCape = new() { AutoSize = true };
+        private readonly ComboBox _capes = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+        private readonly Button _btnCape = new();
+        private readonly PictureBox _capePic = Preview();
+        private List<CapeInfo> _capeList = new();
+        private readonly Dictionary<string, byte[]> _capePngs = new();
+        private bool _loadingCapes;
+
         private SkinInfo? _activeSkin;
         private byte[]? _activePng;
         private bool _loadingModel;
@@ -53,9 +62,10 @@ namespace Velin.Forms
         public SkinsForm(Account account) : base(Localization.T("skins_title", account.Username))
         {
             _account = account;
-            LockSize(700, 440);
-            StartPosition = FormStartPosition.CenterParent;
             bool premium = account.IsMicrosoft;
+            int dy = premium ? 78 : 0;   // las cuentas Microsoft tienen una fila más, la de las capas
+            LockSize(700, 440 + dy);
+            StartPosition = FormStartPosition.CenterParent;
 
             _lblCurrent.Text = Localization.T("skins_current");
             _lblCurrent.Location = new Point(12, 12);
@@ -130,11 +140,26 @@ namespace Velin.Forms
             _hint.SetBounds(12, 282, 676, 64);
             Content.Controls.Add(_hint);
 
-            _status.SetBounds(12, 352, 560, 36);
+            if (premium)
+            {
+                _lblCape.Text = Localization.T("skins_cape_label");
+                _lblCape.Location = new Point(12, 352);
+                _capes.SetBounds(12, 374, 300, 24);
+                _capes.Enabled = false;
+                _capes.SelectedIndexChanged += async (s, e) => await OnCapeSelectedAsync();
+                _btnCape.Text = Localization.T("skins_cape_apply");
+                _btnCape.SetBounds(320, 372, 160, 28);
+                _btnCape.Enabled = false;
+                _btnCape.Click += async (s, e) => await ApplyCapeAsync();
+                _capePic.SetBounds(500, 348, 40, 64);
+                foreach (Control c in new Control[] { _lblCape, _capes, _btnCape, _capePic }) Content.Controls.Add(c);
+            }
+
+            _status.SetBounds(12, 352 + dy, 560, 36);
             Content.Controls.Add(_status);
 
             var close = new Button { Text = Localization.T("btn_close"), DialogResult = DialogResult.OK };
-            close.SetBounds(578, 360, 110, 32);
+            close.SetBounds(578, 360 + dy, 110, 32);
             Content.Controls.Add(close);
             AcceptButton = close;
 
@@ -148,7 +173,7 @@ namespace Velin.Forms
             {
                 _cts.Cancel();
                 _cts.Dispose();
-                ClearImage(_curFront); ClearImage(_curBack); ClearImage(_selFront); ClearImage(_selBack);
+                ClearImage(_curFront); ClearImage(_curBack); ClearImage(_selFront); ClearImage(_selBack); ClearImage(_capePic);
             };
         }
 
@@ -176,7 +201,9 @@ namespace Velin.Forms
             try
             {
                 var token = await GetTokenAsync();
-                var info = await MojangSkinService.GetActiveSkinAsync(token, _cts.Token);
+                var profile = await MojangSkinService.GetProfileAsync(token, _cts.Token);
+                var info = profile.Skin;
+                FillCapes(profile.Capes);
                 _activeSkin = info;
                 _activePng = null;
                 if (info == null)
@@ -214,6 +241,83 @@ namespace Velin.Forms
             _currentNote.Visible = false;
             SetImage(_curFront, SkinRenderer.RenderFront(skin, slim, SkinScale));
             SetImage(_curBack, SkinRenderer.RenderBack(skin, slim, SkinScale));
+        }
+
+        // --- Capas --------------------------------------------------------------------------------
+
+        // Arma la lista: primero "sin capa", después las capas de la cuenta (la equipada lleva una tilde).
+        private void FillCapes(List<CapeInfo> capes)
+        {
+            _capeList = capes;
+            _loadingCapes = true;
+            _capes.Items.Clear();
+            if (capes.Count == 0)
+            {
+                _capes.Items.Add(Localization.T("skins_cape_empty"));
+                _capes.SelectedIndex = 0;
+            }
+            else
+            {
+                _capes.Items.Add(Localization.T("skins_cape_none"));
+                foreach (var c in capes) _capes.Items.Add(c.ToString() + (c.Active ? "  ✓" : ""));
+                _capes.SelectedIndex = capes.FindIndex(c => c.Active) + 1;   // 0 (sin capa) si ninguna está equipada
+            }
+            _loadingCapes = false;
+            UpdateButtons();
+            _ = OnCapeSelectedAsync();
+        }
+
+        // Vista previa de la capa elegida (la textura se baja una sola vez).
+        private async Task OnCapeSelectedAsync()
+        {
+            if (_loadingCapes) return;
+            int idx = _capes.SelectedIndex;
+            if (idx <= 0 || idx > _capeList.Count) { ClearImage(_capePic); return; }
+            var cape = _capeList[idx - 1];
+            try
+            {
+                if (!_capePngs.TryGetValue(cape.Id, out var png))
+                {
+                    png = await MojangSkinService.DownloadSkinAsync(cape.Url, _cts.Token);
+                    _capePngs[cape.Id] = png;
+                }
+                if (IsDisposed || _capes.SelectedIndex != idx) return;
+                var bmp = SkinRenderer.RenderCape(png, 4);
+                if (bmp == null) ClearImage(_capePic); else SetImage(_capePic, bmp);
+            }
+            catch { /* sin vista previa no pasa nada: la capa se puede equipar igual */ }
+        }
+
+        private async Task ApplyCapeAsync()
+        {
+            int idx = _capes.SelectedIndex;
+            if (_capeList.Count == 0 || idx < 0) return;
+            SetBusy(true, Localization.T("skins_uploading"));
+            try
+            {
+                var token = await GetTokenAsync();
+                if (idx == 0)
+                {
+                    await MojangSkinService.HideCapeAsync(token, _cts.Token);
+                    foreach (var c in _capeList) c.Active = false;
+                    FillCapes(_capeList);
+                    SetBusy(false, Localization.T("skins_cape_removed"));
+                }
+                else
+                {
+                    var cape = _capeList[idx - 1];
+                    await MojangSkinService.SetActiveCapeAsync(token, cape.Id, _cts.Token);
+                    foreach (var c in _capeList) c.Active = ReferenceEquals(c, cape);
+                    FillCapes(_capeList);
+                    SetBusy(false, Localization.T("skins_cape_applied", cape.ToString()));
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                if (IsDisposed) return;
+                SetBusy(false, Localization.T("skins_error", ex.Message));
+            }
         }
 
         // --- Biblioteca ---------------------------------------------------------------------------
@@ -269,6 +373,8 @@ namespace Velin.Forms
             _model.Enabled = has;
             _btnApply.Enabled = has && (_account.IsMicrosoft || _instances.Items.Count > 0);
             _btnSaveCurrent.Enabled = _activePng != null;
+            _capes.Enabled = _capeList.Count > 0;
+            _btnCape.Enabled = _capeList.Count > 0;
         }
 
         private void AddFromFile()
@@ -341,7 +447,10 @@ namespace Velin.Forms
             try
             {
                 var token = await GetTokenAsync();
+                // La skin que se va a reemplazar se guarda sola en la biblioteca (historial), para poder volver a ella.
+                var kept = _activePng != null ? SkinLibrary.AddHistory(_activePng, _activeSkin?.Slim ?? false) : null;
                 await MojangSkinService.UploadSkinAsync(token, png, entry.Slim, _cts.Token);
+                if (kept != null) ReloadList(entry.Id);
                 SkinFaceCache.Store(_account.Uuid, png);
                 _activePng = png;
                 _activeSkin = new SkinInfo { Slim = entry.Slim };
@@ -377,7 +486,9 @@ namespace Velin.Forms
             try
             {
                 var token = await GetTokenAsync();
+                var kept = _activePng != null ? SkinLibrary.AddHistory(_activePng, _activeSkin?.Slim ?? false) : null;
                 await MojangSkinService.ResetSkinAsync(token, _cts.Token);
+                if (kept != null) ReloadList(Selected?.Id);
                 _activeSkin = null;
                 _activePng = null;
                 try { File.Delete(Path.Combine(SkinFaceCache.Dir, MojangSkinService.NormalizeUuid(_account.Uuid) + ".png")); } catch { }
@@ -400,6 +511,7 @@ namespace Velin.Forms
             _btnApply.Enabled = !busy;
             _btnReset.Enabled = !busy;
             _btnAdd.Enabled = !busy;
+            if (busy) _btnCape.Enabled = false;
             if (!busy) UpdateButtons();
         }
 

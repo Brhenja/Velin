@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using Velin.Services;
 
 namespace Velin.UI
 {
@@ -62,6 +63,52 @@ namespace Velin.UI
             ClientSize = new Size(width, height + _titleBar.Height);
             MinimumSize = Size;
             MaximumSize = Size;
+        }
+
+        // Escala a la que están hoy las coordenadas de la ventana (1 = como se diseñó, a 96 DPI).
+        private float _layoutScale = 1f;
+
+        protected override void OnLoad(EventArgs e)
+        {
+            // Primero se escala el diseño al DPI real del monitor, antes de que las ventanas hijas (evento Load) toquen nada.
+            ApplyLayoutDpi(DeviceDpi);
+            base.OnLoad(e);
+        }
+
+        protected override void OnDpiChanged(DpiChangedEventArgs e)
+        {
+            e.Cancel = true;   // el tamaño de la ventana lo manejamos acá, para que Windows no la estire por su cuenta
+            base.OnDpiChanged(e);
+            ApplyLayoutDpi(e.DeviceDpiNew);
+        }
+
+        private void ApplyLayoutDpi(int dpi)
+        {
+            float ratio = (dpi / 96f) / _layoutScale;
+            if (Math.Abs(ratio - 1f) < 0.01f) return;
+
+            var area = Screen.FromControl(this).WorkingArea;
+            ratio = DpiMath.FitRatio(ratio, ClientSize.Width, ClientSize.Height, area.Width, area.Height);
+            if (Math.Abs(ratio - 1f) < 0.01f) return;
+
+            var center = new Point(Left + Width / 2, Top + Height / 2);
+            SuspendLayout();
+            try
+            {
+                DpiScaler.ScaleChildren(this, ratio);
+                MinimumSize = Size.Empty;
+                MaximumSize = Size.Empty;
+                ClientSize = new Size(DpiMath.Scale(ClientSize.Width, ratio), DpiMath.Scale(ClientSize.Height, ratio));
+                MinimumSize = Size;
+                MaximumSize = Size;
+                _layoutScale *= ratio;
+
+                // La ventana creció (o se achicó) desde su esquina: se vuelve a centrar donde estaba, sin salirse de la pantalla.
+                var x = Math.Max(area.Left, Math.Min(center.X - Width / 2, area.Right - Width));
+                var y = Math.Max(area.Top, Math.Min(center.Y - Height / 2, area.Bottom - Height));
+                Location = new Point(x, y);
+            }
+            finally { ResumeLayout(true); }
         }
 
         // Por si alguna ventana se abre con el launcher ya corriendo y el tema cambia

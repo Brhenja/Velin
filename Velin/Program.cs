@@ -34,7 +34,7 @@ namespace Velin
             if (!SettingsManager.Exists)
             {
                 var langs = LanguageCatalog.Available();
-                Localization.SetLanguage(LanguageCatalog.Detect(System.Globalization.CultureInfo.CurrentUICulture, langs));
+                Localization.SetLanguage(LanguageCatalog.Detect(SystemLanguage.GetUiCultureName() ?? System.Globalization.CultureInfo.CurrentUICulture.Name, langs));
                 Theme.Current = ThemeManager.FindByName(settings.ThemeName);
                 using (var wizard = new Velin.Forms.FirstRunForm(settings))
                     wizard.ShowDialog();

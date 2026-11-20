@@ -98,6 +98,23 @@ namespace Velin.UI
             return bmp;
         }
 
+        // La capa vista de espaldas al personaje (es la cara que se ve): 10x16 píxeles de textura que empiezan en (1,1).
+        // Las capas HD son múltiplos de 64x32, por eso se escala la posición según el ancho. null si no se puede leer.
+        public static Bitmap? RenderCape(byte[] png, int scale)
+        {
+            try
+            {
+                using var ms = new MemoryStream(png);
+                using var texture = new Bitmap(ms);
+                int k = Math.Max(1, texture.Width / 64);
+                var bmp = new Bitmap(10 * scale, 16 * scale);
+                using var g = Prepare(bmp);
+                g.DrawImage(texture, new Rectangle(0, 0, bmp.Width, bmp.Height), new Rectangle(k, k, 10 * k, 16 * k), GraphicsUnit.Pixel);
+                return bmp;
+            }
+            catch { return null; }
+        }
+
         // Sólo la cara (con la capa del sombrero), cuadrada de `size` píxeles.
         public static Bitmap RenderFace(Bitmap skin, int size)
         {

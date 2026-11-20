@@ -7,10 +7,35 @@ namespace Velin.Services
         // Elige los flags según la JVM que se va a usar. OpenJ9 (Semeru) NO entiende los flags de G1/HotSpot,
         // así que tiene su propio juego; GraalVM corre sobre HotSpot y usa los mismos que Temurin.
         public static List<string> Build(int ramMB, JavaFlavor flavor, bool optimized)
+            => Build(ramMB, flavor, optimized, System.Environment.ProcessorCount, SystemInfo.GetMemory()?.TotalMB ?? 0);
+
+        // Igual, pero con los datos de la PC a la vista (núcleos y RAM total en MB; 0 = no se sabe), para poder probarlo.
+        public static List<string> Build(int ramMB, JavaFlavor flavor, bool optimized, int cores, long totalRamMB)
         {
             if (!optimized) return BuildMinimal(ramMB);
-            return flavor == JavaFlavor.OpenJ9 ? BuildOpenJ9Flags(ramMB) : BuildAikarFlags(ramMB);
+            if (flavor == JavaFlavor.OpenJ9) return BuildOpenJ9Flags(ramMB);
+            return IsWeakMachine(ramMB, cores, totalRamMB) ? BuildLightFlags(ramMB) : BuildAikarFlags(ramMB);
         }
+
+        // PC justa: 2 núcleos o menos, 4 GB de RAM o menos, o un heap chico (hasta 1,5 GB). Ahí G1 gasta hilos y memoria
+        // extra (marcado concurrente, conjuntos recordados) que no compensa: el recolector serial es más liviano.
+        // Es un criterio práctico, no un benchmark: quien lo prefiera puede apagar los flags optimizados en Configuración.
+        public static bool IsWeakMachine(int ramMB, int cores, long totalRamMB)
+            => cores <= 2 || ramMB <= 1536 || (totalRamMB > 0 && totalRamMB <= 4096);
+
+        // Para PCs justas (HotSpot/GraalVM): recolector serial, el heap arranca chico y crece según haga falta.
+        public static List<string> BuildLightFlags(int ramMB) => new()
+        {
+            "-XX:+IgnoreUnrecognizedVMOptions",
+            $"-Xms{System.Math.Min(ramMB, 512)}M",
+            $"-Xmx{ramMB}M",
+            "-XX:+UseSerialGC",
+            "-XX:+DisableExplicitGC",
+            "-XX:-UsePerfData", // no escribe los archivos de monitoreo de la JVM en disco
+            "-Dfile.encoding=UTF-8",
+            "-Dsun.rmi.dgc.server.gcInterval=2147483646",
+            "-Dsun.rmi.dgc.client.gcInterval=2147483646"
+        };
 
         // Sin optimizaciones: solo memoria y codificación.
         public static List<string> BuildMinimal(int ramMB) => new()
@@ -38,6 +63,8 @@ namespace Velin.Services
         {
             return new List<string>
             {
+                // Si alguna versión de Java no conoce un flag, lo ignora en vez de no arrancar.
+                "-XX:+IgnoreUnrecognizedVMOptions",
                 $"-Xms{ramMB}M",
                 $"-Xmx{ramMB}M",
                 "-XX:+UseG1GC",
@@ -62,6 +89,7 @@ namespace Velin.Services
                 "-XX:MaxTenuringThreshold=1",
                 // Extra, seguros (no afectan mods ni jugabilidad):
                 "-XX:+UseStringDeduplication", // reduce RAM al no duplicar strings idénticos en memoria
+                "-XX:-UsePerfData", // no escribe los archivos de monitoreo de la JVM en disco
                 "-Dfile.encoding=UTF-8",
                 "-Dsun.rmi.dgc.server.gcInterval=2147483646", // evita pausas periódicas innecesarias del RMI
                 "-Dsun.rmi.dgc.client.gcInterval=2147483646"

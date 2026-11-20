@@ -59,6 +59,8 @@ namespace Velin.Forms
             _showLegacy.Text = Localization.T("chk_legacy");
             _showLegacy.AutoSize = true;
             _showLegacy.Location = new Point(_showSnapshots.PreferredSize.Width + 30, y);
+            // Con el DPI de la pantalla ya aplicado, se acomoda al lado de la casilla de al lado (el ancho real recién se conoce al abrir).
+            Load += (s, e) => _showLegacy.Left = _showSnapshots.Right + DpiScaler.Px(this, 18);
             Content.Controls.Add(_showLegacy);
             _showSnapshots.CheckedChanged += async (s, e) => await LoadVersionsAsync();
             _showLegacy.CheckedChanged += async (s, e) => await LoadVersionsAsync();

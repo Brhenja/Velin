@@ -80,6 +80,15 @@ en ese idioma. Las pruebas (`tests\ServiceTests`) verifican que cada archivo ten
 que `es.json`. Si el idioma necesita una fuente que las medievales no tienen, ver `LanguageCatalog` (`LatinSafe` y
 `CjkFontNames`).
 
+## Desarrollo rápido
+`build.ps1` hace todo (ReadyToRun, un solo `.exe`, instalador) y es lento. Para el día a día alcanza con:
+```powershell
+dotnet build Velin\Velin.csproj -c Debug                    # solo ver si compila (incremental)
+dotnet run --project Velin\Velin.csproj -c Debug            # probar el programa sin instalar
+dotnet run --project tests\ServiceTests -c Release          # las pruebas
+```
+La carpeta `Assets\` se copia sola junto al ejecutable de Debug. Dejá `.\build.ps1` para probar el instalador y para la release.
+
 ## Estructura
 ```
 Velin.sln

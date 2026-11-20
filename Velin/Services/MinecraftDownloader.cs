@@ -289,6 +289,7 @@ namespace Velin.Services
             Directory.CreateDirectory(nativesDir);
 
             var clientJarPath = Path.Combine(instanceVersionsDir, $"{mcVersion}.jar");
+            Task? clientTask = null;
 
             if (customJarPath != null)
             {
@@ -309,8 +310,9 @@ namespace Velin.Services
 
                 if (!File.Exists(clientJarPath) && profile.ClientDownload != null)
                 {
-                    progress?.Report("Descargando cliente de Minecraft...");
-                    await FileDownloader.DownloadAsync(profile.ClientDownload.Url, clientJarPath,
+                    // El cliente es el archivo más grande: se baja al mismo tiempo que las librerías en vez de esperar a que termine.
+                    progress?.Report("Descargando cliente y librerías...");
+                    clientTask = FileDownloader.DownloadAsync(profile.ClientDownload.Url, clientJarPath,
                         profile.ClientDownload.Sha1, profile.ClientDownload.Size, ct: ct);
                 }
             }
@@ -318,7 +320,7 @@ namespace Velin.Services
 
             // Descargas de librerías en paralelo. Cada una se verifica (tamaño/SHA1 cuando Mojang lo informa)
             // y se reintenta; lo que no se pueda bajar se avisa al final en vez de ignorarse en silencio.
-            progress?.Report("Descargando librerías...");
+            if (clientTask == null) progress?.Report("Descargando librerías...");
             int libTotal = profile.Libraries.Count;
             int libDone = 0;
             var failures = new ConcurrentBag<string>();
@@ -392,6 +394,7 @@ namespace Velin.Services
             }).ToList();
 
             await Task.WhenAll(libTasks);
+            if (clientTask != null) await clientTask;
             percent?.Report(1.0);
 
             if (!failures.IsEmpty)
@@ -446,7 +449,7 @@ namespace Velin.Services
             if (total == 0) { percent?.Report(1.0); return; }
 
             int done = 0, failed = 0;
-            using var gate = new SemaphoreSlim(10); // descargas de assets en paralelo
+            using var gate = new SemaphoreSlim(16); // descargas de assets en paralelo (son miles de archivos chicos: lo que más pesa es la espera de cada uno)
             var tasks = pending.Select(async obj =>
             {
                 await gate.WaitAsync(ct);

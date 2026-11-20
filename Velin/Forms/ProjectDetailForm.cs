@@ -149,7 +149,7 @@ namespace Velin.Forms
             {
                 if (_links.Controls.Count >= 5) break;
                 // El ancho se ajusta al texto ("Reportar problemas" se cortaba con un ancho fijo).
-                var width = Math.Max(90, TextRenderer.MeasureText(link.Label, Theme.UiFont(9f)).Width + 28);
+                var width = Math.Max(DpiScaler.Px(this, 90), TextRenderer.MeasureText(link.Label, Theme.UiFont(9f)).Width + DpiScaler.Px(this, 28));
                 var b = new Button { Text = link.Label, Width = width, Height = 26, Margin = new Padding(0, 0, 6, 0), Tag = link.Url };
                 b.Click += (s, e) => OpenUrl((string)((Button)s!).Tag!);
                 _links.Controls.Add(b);
@@ -195,7 +195,7 @@ namespace Velin.Forms
             using var g = Graphics.FromImage(bmp);
             g.Clear(Theme.ControlBg);
             var letter = (title.Trim().Length > 0 ? title.Trim().Substring(0, 1) : "?").ToUpperInvariant();
-            using var font = Theme.UiFont(26f, FontStyle.Bold);
+            var font = Theme.UiFont(26f, FontStyle.Bold); // fuente compartida de Theme: no se le hace Dispose
             TextRenderer.DrawText(g, letter, font, new Rectangle(0, 0, 64, 64), Theme.ControlText,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             return bmp;

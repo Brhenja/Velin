@@ -15,7 +15,9 @@ namespace Velin.Services
         public static AppSettings Load()
         {
             PathService.EnsureAll();
-            if (!File.Exists(FilePath)) return new AppSettings();
+            // Configuración nueva (primer inicio): ya nace con la marca de migración puesta. Sin eso, lo que se elige en el asistente
+            // (por ejemplo la música apagada) se guardaba sin la marca y la migración de abajo lo pisaba en la siguiente carga.
+            if (!File.Exists(FilePath)) return new AppSettings { MusicOnDefaultApplied = true };
             try
             {
                 var loaded = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();

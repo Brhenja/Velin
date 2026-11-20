@@ -51,6 +51,8 @@ namespace Velin.Forms
             _showLegacy.Text = Localization.T("chk_legacy");
             _showLegacy.AutoSize = true;
             _showLegacy.Location = new System.Drawing.Point(_showSnapshots.PreferredSize.Width + 30, y);
+            // Con el DPI de la pantalla ya aplicado, se acomoda al lado de la casilla de al lado (el ancho real recién se conoce al abrir).
+            Load += (s, e) => _showLegacy.Left = _showSnapshots.Right + DpiScaler.Px(this, 18);
             Content.Controls.Add(_showLegacy);
 
             _showSnapshots.CheckedChanged += async (s, e) => await LoadVersionsAsync();
@@ -69,7 +71,7 @@ namespace Velin.Forms
 
             Content.Controls.Add(Lbl(Localization.T("lbl_ram"), y)); y += 22;
             _ram.SetBounds(12, y, 150, 24); Content.Controls.Add(_ram); y += 28;
-            var ramHint = new Label { AutoSize = false, Font = new System.Drawing.Font("Segoe UI", 7.5f, System.Drawing.FontStyle.Italic), Text = RamHint.Build((int)_ram.Value) };
+            var ramHint = new Label { AutoSize = false, Font = Theme.PlainFont(7.5f, System.Drawing.FontStyle.Italic), Text = RamHint.Build((int)_ram.Value) };
             ramHint.SetBounds(12, y, 400, 30); Content.Controls.Add(ramHint);
             _ram.ValueChanged += (s, e) => ramHint.Text = RamHint.Build((int)_ram.Value);
             y += 34;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -20,7 +21,23 @@ namespace Velin.Services
         public string Variant => Slim ? "slim" : "classic";
     }
 
-    // Skins de cuentas Microsoft: ver la actual, subir una nueva y restaurar la de por defecto.
+    public class CapeInfo
+    {
+        public string Id { get; set; } = "";
+        public string Alias { get; set; } = "";
+        public string Url { get; set; } = "";
+        public bool Active { get; set; }
+        public override string ToString() => Alias.Length > 0 ? Alias : Id;
+    }
+
+    // Lo que devuelve /minecraft/profile: la skin activa y las capas que tiene la cuenta.
+    public class MojangProfile
+    {
+        public SkinInfo? Skin { get; set; }
+        public List<CapeInfo> Capes { get; set; } = new();
+    }
+
+    // Skins y capas de cuentas Microsoft: ver la actual, subir una nueva y restaurar la de por defecto.
     //  - Con token (api.minecraftservices.com): GET /minecraft/profile, POST /minecraft/profile/skins, DELETE .../skins/active.
     //  - Sin token (sessionserver.mojang.com): sólo la skin pública de un UUID (para mostrar la cara en la ventana principal).
     public static class MojangSkinService
@@ -47,6 +64,37 @@ namespace Velin.Services
             var body = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode) throw new SkinException(DescribeError(resp, body));
             return ParseProfileSkin(body);
+        }
+
+        // La skin activa y las capas de la cuenta en una sola consulta.
+        public static async Task<MojangProfile> GetProfileAsync(string accessToken, CancellationToken ct = default)
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, ServicesBase + "/minecraft/profile");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            using var resp = await Http.SendAsync(req, ct);
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode) throw new SkinException(DescribeError(resp, body));
+            return new MojangProfile { Skin = ParseProfileSkin(body), Capes = ParseProfileCapes(body) };
+        }
+
+        // Equipa una de las capas de la cuenta (el id sale de GetProfileAsync).
+        public static async Task SetActiveCapeAsync(string accessToken, string capeId, CancellationToken ct = default)
+        {
+            var json = JsonSerializer.Serialize(new { capeId });
+            using var req = new HttpRequestMessage(HttpMethod.Put, ServicesBase + "/minecraft/profile/capes/active")
+            { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            using var resp = await Http.SendAsync(req, ct);
+            if (!resp.IsSuccessStatusCode) throw new SkinException(DescribeError(resp, await resp.Content.ReadAsStringAsync(ct)));
+        }
+
+        // Se queda sin capa (las capas de la cuenta no se pierden: se pueden volver a equipar).
+        public static async Task HideCapeAsync(string accessToken, CancellationToken ct = default)
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Delete, ServicesBase + "/minecraft/profile/capes/active");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            using var resp = await Http.SendAsync(req, ct);
+            if (!resp.IsSuccessStatusCode) throw new SkinException(DescribeError(resp, await resp.Content.ReadAsStringAsync(ct)));
         }
 
         public static async Task UploadSkinAsync(string accessToken, byte[] png, bool slim, CancellationToken ct = default)
@@ -118,6 +166,31 @@ namespace Velin.Services
                 return first;
             }
             catch (JsonException) { return null; }
+        }
+
+        // /minecraft/profile → {"capes":[{"id":..,"state":"ACTIVE","url":..,"alias":"Migrator"}]}
+        public static List<CapeInfo> ParseProfileCapes(string json)
+        {
+            var list = new List<CapeInfo>();
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (!doc.RootElement.TryGetProperty("capes", out var capes) || capes.ValueKind != JsonValueKind.Array) return list;
+                foreach (var c in capes.EnumerateArray())
+                {
+                    var id = Str(c, "id");
+                    if (id.Length == 0) continue;
+                    list.Add(new CapeInfo
+                    {
+                        Id = id,
+                        Alias = Str(c, "alias"),
+                        Url = Str(c, "url"),
+                        Active = string.Equals(Str(c, "state"), "ACTIVE", StringComparison.OrdinalIgnoreCase)
+                    });
+                }
+            }
+            catch (JsonException) { }
+            return list;
         }
 
         // sessionserver → {"properties":[{"name":"textures","value":"<base64 de {textures:{SKIN:{url,metadata:{model}}}}>"}]}

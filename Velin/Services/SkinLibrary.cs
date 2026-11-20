@@ -13,7 +13,8 @@ namespace Velin.Services
         public bool Slim { get; set; }
         public string FileName { get; set; } = "";   // dentro de data\skins\
         public DateTime AddedUtc { get; set; } = DateTime.UtcNow;
-        public override string ToString() => Name + (Slim ? "  (slim)" : "");
+        public bool Auto { get; set; }                // guardada sola por el historial (la skin que se reemplazó)
+        public override string ToString() => (Auto ? "↺ " : "") + Name + (Slim ? "  (slim)" : "");
     }
 
     // Biblioteca local de skins: data\skins\*.png + data\skins\skins.json. No depende de ninguna cuenta,
@@ -24,9 +25,48 @@ namespace Velin.Services
         private static readonly object Lock = new();
         private static string IndexFile => Path.Combine(PathService.SkinsDir, "skins.json");
 
+        // Cuántas skins se guardan solas en el historial; al pasarse se borran las más viejas.
+        public const int MaxHistory = 20;
+
+        // Primero las que guardó el usuario (por nombre) y al final el historial (de la más nueva a la más vieja).
         public static List<SkinEntry> List()
         {
-            lock (Lock) return Load().OrderBy(e => e.Name, StringComparer.CurrentCultureIgnoreCase).ToList();
+            lock (Lock)
+                return Load().OrderBy(e => e.Auto)
+                             .ThenBy(e => e.Auto ? "" : e.Name, StringComparer.CurrentCultureIgnoreCase)
+                             .ThenByDescending(e => e.AddedUtc).ToList();
+        }
+
+        // Guarda la skin que está por ser reemplazada, para poder volver a ella (Mojang no ofrece un historial propio).
+        // No hace nada si esa misma imagen ya está en la biblioteca. Devuelve la entrada nueva o null.
+        public static SkinEntry? AddHistory(byte[] png, bool slim)
+        {
+            if (ValidatePng(png) != null) return null;
+            lock (Lock)
+            {
+                var all = Load();
+                if (all.Any(e => SameImage(e, png))) return null;
+
+                Directory.CreateDirectory(PathService.SkinsDir);
+                var entry = new SkinEntry { Name = DateTime.Now.ToString("yyyy-MM-dd HH:mm"), Slim = slim, Auto = true };
+                entry.FileName = entry.Id + ".png";
+                File.WriteAllBytes(Path.Combine(PathService.SkinsDir, entry.FileName), png);
+                all.Add(entry);
+
+                foreach (var old in all.Where(e => e.Auto).OrderByDescending(e => e.AddedUtc).Skip(MaxHistory).ToList())
+                {
+                    try { File.Delete(FilePath(old)); } catch { }
+                    all.Remove(old);
+                }
+                Save(all);
+                return entry;
+            }
+        }
+
+        private static bool SameImage(SkinEntry entry, byte[] png)
+        {
+            try { return File.ReadAllBytes(FilePath(entry)).AsSpan().SequenceEqual(png); }
+            catch { return false; }
         }
 
         public static SkinEntry Add(string name, byte[] png, bool slim)

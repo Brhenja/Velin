@@ -82,18 +82,22 @@ namespace Velin.Services
 
         // Elige un idioma disponible a partir de la cultura de Windows ("pt-PT" -> pt-BR, "zh-Hans-CN" -> zh-CN, "es-AR" -> es...).
         public static string Detect(CultureInfo culture, IReadOnlyCollection<LanguageInfo> available)
+            => Detect(culture.Name, available);
+
+        // Lo mismo, a partir del nombre de la cultura ("es-AR"). Vacío o desconocido: inglés.
+        public static string Detect(string? cultureName, IReadOnlyCollection<LanguageInfo> available)
         {
             string Pick(string code) => available.Any(a => a.Code.Equals(code, StringComparison.OrdinalIgnoreCase)) ? code : "";
-            var name = culture.Name;
-            var two = culture.TwoLetterISOLanguageName;
+            var name = (cultureName ?? "").Trim();
+            var two = name.Split('-', '_')[0].ToLowerInvariant();
             string chosen = two switch
             {
                 "pt" => Pick("pt-BR"),
                 "zh" => Pick("zh-CN"),
                 _ => ""
             };
-            if (chosen.Length == 0) chosen = Pick(name);
-            if (chosen.Length == 0) chosen = Pick(two);
+            if (chosen.Length == 0 && name.Length > 0) chosen = Pick(name);
+            if (chosen.Length == 0 && two.Length > 0) chosen = Pick(two);
             return chosen.Length > 0 ? chosen : FallbackCode;
         }
 

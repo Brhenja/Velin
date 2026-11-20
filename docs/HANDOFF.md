@@ -1,9 +1,8 @@
 # Velin — estado del desarrollo (traspaso a otro chat)
 
 Launcher de Minecraft Java para Windows. C# / .NET 8 / WinForms, repo https://github.com/Brhenja/Velin (rama `main`).
-Última versión PUBLICADA: **1.1.1**. **1.2.0** está terminada: compila, el usuario la probó (fuentes, splash, ícono, música,
-primer inicio, filtros, importadores, acceso directo y aviso de actualización andan bien) y falta solo publicarla a mano
-desde la página de Releases (ver docs/COMPILAR.md → "Publicar una release" y docs/RELEASE-1.2.0.md).
+Última versión PUBLICADA: **1.2.0**. **1.3.0** está terminada y probada por el usuario (compila, las pruebas pasan): falta subirla al repo y publicarla
+a mano desde la página de Releases (ver docs/COMPILAR.md → "Publicar una release" y docs/RELEASE-1.3.0.md).
 
 ## Reglas de trabajo del usuario
 - Preguntarle las dudas ANTES de tocar código. Idioma: español rioplatense. Filosofía: liviano, minimalista, sin dependencias nuevas, sin regresiones.
@@ -48,8 +47,19 @@ cara de la skin en la ventana principal.
   tiene la relevancia que piden): el instalador sigue sin firmar.
 - Documentación al día: README, README.en, CHANGELOG, docs/COMPILAR.md y docs/RELEASE-1.2.0.md.
 
-## 1.3.0 (después)
-Escalado HiDPI (ventanas de tamaño fijo; ya hay PerMonitorV2 en Program.cs), descargas en paralelo de librerías/assets (revisar `MinecraftDownloader`), analizador de crashes, capas (capes) e historial de skins (API Mojang: GET /minecraft/profile, PUT /minecraft/profile/capes/active, DELETE ...), firma del instalador (reintentar SignPath cuando el proyecto tenga más relevancia, o certificado de pago), actualización de modpacks de CurseForge.
+## 1.3.0 — hecha (resumen para quien siga)
+- Analizador de crashes (`Services/CrashAnalyzer.cs`, causas en `CrashReportForm`; textos `crash_*`). Capas e historial de skins (`MojangSkinService.GetProfileAsync/SetActiveCapeAsync/HideCapeAsync`, `SkinLibrary.AddHistory`, fila de capas en `SkinsForm`).
+  Actualizar modpacks de CurseForge (`ModpackUpdater.ApplyCurseForgeAsync`; las instalaciones de CurseForge ahora guardan `modpack-files.json`).
+- HiDPI: `VelinFormBase.ApplyLayoutDpi` + `UI/DpiScaler.cs` + `Services/DpiMath.cs` (escala el diseño a 96 DPI por el DPI del monitor; a 100 % no hace nada). Lo que se arma en tiempo de ejecución debe usar `DpiScaler.Px(this, valor)`.
+- Consumo: caché de fuentes en `Theme` (las fuentes de `Theme.UiFont/TitleFont/PlainFont` son COMPARTIDAS: no hacerles Dispose), `Services/MemoryTrimmer.cs`, `ConcurrentGarbageCollection=false`, GIF de Flash lazy.
+- Java: `JavaArgsBuilder.Build(ram, flavor, optimized, cores, totalRam)` con perfil liviano (`IsWeakMachine`) y `IgnoreUnrecognizedVMOptions`.
+- Idioma de Windows: `Services/SystemLanguage.cs` (InvariantGlobalization hace que CurrentUICulture sea invariante).
+- Los desplegables/listas/cajas de texto pierden el tema visual con `SetWindowTheme("","")` al crearse el handle (`Theme.DisableVisualStyleGlow`). NO aplicarlo a CheckBox: revienta al dibujar el cuadradito.
+- Vault: arrastrar hacia afuera (copia). Descargas: ya eran paralelas; ahora el cliente va junto con las librerías y los assets usan 16.
+- Pendientes ideas: botón "configuración mínima" (options.txt) para PCs flojas, firma del instalador (reintentar SignPath cuando el proyecto tenga más relevancia, o certificado de pago).
+
+## 1.4.0 (después)
+Separar `Velin.Core` (lógica sin WinForms) para preparar el frontend de Linux (2.0, Avalonia).
 
 ## Datos técnicos útiles
 - Mojang skins: GET `https://api.minecraftservices.com/minecraft/profile`, POST `.../minecraft/profile/skins` (multipart variant+file), DELETE `.../skins/active`; públicas por UUID en sessionserver (cache 30 min en `data\cache\skins`).

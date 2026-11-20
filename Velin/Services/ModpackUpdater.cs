@@ -10,7 +10,7 @@ using Velin.Models;
 
 namespace Velin.Services
 {
-    // Actualiza un modpack de Modrinth YA instalado a otra versión, sobre la misma instancia.
+    // Actualiza un modpack de Modrinth o de CurseForge YA instalado a otra versión, sobre la misma instancia.
     //  - Mundos, capturas, opciones y todo lo que agregó el usuario se conservan.
     //  - Los mods/resource packs/shaders que el pack viejo traía y el nuevo ya no, NO se borran: se mueven a
     //    modpack-update-trash\<fecha>\ dentro de la instancia (se pueden recuperar).
@@ -20,7 +20,8 @@ namespace Velin.Services
         private static readonly string[] ManagedFolders = { "mods", "resourcepacks", "shaderpacks" };
 
         public static bool CanUpdate(Instance instance) =>
-            instance.ModpackSource == "modrinth" && instance.ModpackProjectId.Length > 0 && ModpackImporter.ReadFileList(instance) != null;
+            (instance.ModpackSource == "modrinth" || instance.ModpackSource == "curseforge")
+            && instance.ModpackProjectId.Length > 0 && ModpackImporter.ReadFileList(instance) != null;
 
         // Qué carpetas de la lista vieja son "del pack" y se pueden retirar con seguridad.
         public static bool IsManagedPath(string relativePath)
@@ -55,15 +56,7 @@ namespace Velin.Services
 
             // 1) Lo que ya no está en el pack nuevo se aparta (no se borra).
             progress?.Report("Apartando los archivos que ya no están en el pack...");
-            var trash = Path.Combine(instance.InstanceDir, "modpack-update-trash", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
-            foreach (var rel in FindRemoved(oldFiles, newFiles))
-            {
-                var src = SafeCombine(gameRoot, rel);
-                if (src == null || !File.Exists(src)) continue;
-                var dst = Path.Combine(trash, rel.Replace('/', Path.DirectorySeparatorChar));
-                try { Directory.CreateDirectory(Path.GetDirectoryName(dst)!); File.Move(src, dst, true); }
-                catch { /* si está en uso se deja donde está */ }
-            }
+            TrashRemoved(instance, oldFiles, newFiles, gameRoot);
             percent?.Report(0.1);
 
             // 2) Archivos del índice: sólo se baja lo que falta o cambió (por SHA1).
@@ -104,21 +97,7 @@ namespace Velin.Services
 
             // 3) Overrides: lo nuevo se agrega; lo que ya existe sólo se reemplaza dentro de mods\ (la configuración del usuario no se pisa).
             progress?.Report("Aplicando archivos incluidos en el modpack...");
-            foreach (var prefix in new[] { "overrides/", "client-overrides/" })
-            {
-                foreach (var entry in zip.Entries)
-                {
-                    var full = entry.FullName.Replace('\\', '/');
-                    if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
-                    var rel = full.Substring(prefix.Length);
-                    if (rel.Length == 0 || rel.EndsWith('/')) continue;
-                    var target = SafeCombine(gameRoot, rel);
-                    if (target == null) continue;
-                    if (File.Exists(target) && !IsManagedPath(rel)) continue;
-                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                    entry.ExtractToFile(target, true);
-                }
-            }
+            ApplyOverrides(zip, new[] { "overrides/", "client-overrides/" }, gameRoot);
 
             // 4) Versión de Minecraft / loader y datos del pack.
             InstanceManager.ChangeVersion(instance, mc, loader, loaderVersion);
@@ -133,6 +112,124 @@ namespace Velin.Services
                 var list = failures.Distinct().OrderBy(x => x).ToList();
                 onWarning?.Invoke($"No se pudieron descargar {list.Count} archivo(s) del modpack: " +
                                   string.Join(", ", list.Take(5)) + (list.Count > 5 ? $" y {list.Count - 5} más" : "") + ".");
+            }
+        }
+
+        // Aparta (no borra) lo que el pack viejo traía y el nuevo ya no: va a modpack-update-trash\<fecha>\ dentro de la instancia.
+        private static void TrashRemoved(Instance instance, IEnumerable<string> oldFiles, IEnumerable<string> newFiles, string gameRoot)
+        {
+            var trash = Path.Combine(instance.InstanceDir, "modpack-update-trash", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+            foreach (var rel in FindRemoved(oldFiles, newFiles))
+            {
+                var src = SafeCombine(gameRoot, rel);
+                if (src == null || !File.Exists(src)) continue;
+                var dst = Path.Combine(trash, rel.Replace('/', Path.DirectorySeparatorChar));
+                try { Directory.CreateDirectory(Path.GetDirectoryName(dst)!); File.Move(src, dst, true); }
+                catch { /* si está en uso se deja donde está */ }
+            }
+        }
+
+        // Overrides del pack: lo nuevo se agrega; lo que ya existe sólo se reemplaza dentro de mods\ (la configuración del usuario no se pisa).
+        private static void ApplyOverrides(ZipArchive zip, IEnumerable<string> prefixes, string gameRoot)
+        {
+            foreach (var prefix in prefixes)
+            {
+                foreach (var entry in zip.Entries)
+                {
+                    var full = entry.FullName.Replace('\\', '/');
+                    if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                    var rel = full.Substring(prefix.Length);
+                    if (rel.Length == 0 || rel.EndsWith('/')) continue;
+                    var target = SafeCombine(gameRoot, rel);
+                    if (target == null) continue;
+                    if (File.Exists(target) && !IsManagedPath(rel)) continue;
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    entry.ExtractToFile(target, true);
+                }
+            }
+        }
+
+        // Modpack de CurseForge: mismo criterio que con Modrinth, con los archivos que lista su manifest.json.
+        public static async Task ApplyCurseForgeAsync(Instance instance, string zipPath, ContentVersion version, CurseForgeApi api,
+            IProgress<string>? progress, IProgress<double>? percent, Action<string>? onWarning)
+        {
+            var oldFiles = ModpackImporter.ReadFileList(instance)
+                ?? throw new NotSupportedException("Esta instancia se instaló antes de que Velin recordara los archivos del modpack, así que no se puede actualizar de forma segura.");
+
+            using var zip = ZipFile.OpenRead(zipPath);
+            var manifest = await CurseForgeService.ReadManifestAsync(zip);
+
+            progress?.Report("Consultando los archivos del modpack en CurseForge...");
+            var fileInfos = await CurseForgeService.GetFileInfosAsync(api, manifest.FileRefs);
+            var modInfos = await CurseForgeService.GetModInfosAsync(api, fileInfos);
+            var newFiles = CurseForgeService.PackFilePaths(fileInfos, modInfos, zip, manifest.Overrides);
+            var gameRoot = Path.GetFullPath(instance.GameDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+            // 1) Lo que ya no está en el pack nuevo se aparta (no se borra).
+            progress?.Report("Apartando los archivos que ya no están en el pack...");
+            TrashRemoved(instance, oldFiles, newFiles, gameRoot);
+            percent?.Report(0.1);
+
+            // 2) Sólo se baja lo que falta o cambió (por SHA1, o por tamaño si CurseForge no informa el hash).
+            var failures = new ConcurrentBag<string>();
+            int total = fileInfos.Count, done = 0;
+            using (var gate = new SemaphoreSlim(4))
+            {
+                var tasks = fileInfos.Select(async f =>
+                {
+                    await gate.WaitAsync();
+                    try
+                    {
+                        modInfos.TryGetValue(f.ModId, out var info);
+                        var rel = CurseForgeService.RelativePathFor(f, info?.ClassId ?? CurseForgeService.ClassMods);
+                        var dest = SafeCombine(gameRoot, rel);
+                        if (dest == null) { failures.Add(rel); return; }
+
+                        var sha1 = CurseForgeService.Sha1Of(f);
+                        if (File.Exists(dest))
+                        {
+                            bool same = !string.IsNullOrEmpty(sha1)
+                                ? string.Equals(await FileDownloader.Sha1Async(dest), sha1, StringComparison.OrdinalIgnoreCase)
+                                : new FileInfo(dest).Length == f.FileLength;
+                            if (same) return;   // ya está igual
+                        }
+
+                        try
+                        {
+                            var url = await CurseForgeService.ResolveUrlAsync(api, f, info?.Links?.WebsiteUrl);
+                            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                            await FileDownloader.DownloadAsync(url, dest, sha1, f.FileLength);
+                        }
+                        catch (Exception ex) { failures.Add($"{info?.Name ?? f.DisplayName}: {ex.Message}"); }
+                    }
+                    finally
+                    {
+                        gate.Release();
+                        var d = Interlocked.Increment(ref done);
+                        progress?.Report($"Actualizando archivos del modpack ({d}/{total})...");
+                        percent?.Report(0.1 + 0.8 * (total == 0 ? 1.0 : (double)d / total));
+                    }
+                }).ToList();
+                await Task.WhenAll(tasks);
+            }
+
+            // 3) Overrides.
+            progress?.Report("Aplicando archivos incluidos en el modpack...");
+            ApplyOverrides(zip, new[] { manifest.Overrides.TrimEnd('/') + "/" }, gameRoot);
+
+            // 4) Versión de Minecraft / loader y datos del pack.
+            InstanceManager.ChangeVersion(instance, manifest.Mc, manifest.Loader, manifest.LoaderVersion);
+            instance.ModpackVersionId = version.Id;
+            instance.ModpackVersionName = version.Name;
+            instance.Save();
+            ModpackImporter.WriteFileList(instance, newFiles);
+            percent?.Report(1.0);
+
+            if (!failures.IsEmpty)
+            {
+                var list = failures.Distinct().OrderBy(x => x).ToList();
+                onWarning?.Invoke("No se pudieron descargar " + list.Count + " archivo(s) del modpack (hay que bajarlos a mano):\n" +
+                                  string.Join("\n", list.Take(8)) + (list.Count > 8 ? $"\n...y {list.Count - 8} más." : ""));
             }
         }
 

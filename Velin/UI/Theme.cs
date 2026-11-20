@@ -18,6 +18,26 @@ namespace Velin.UI
         [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
         private static extern int SetWindowTheme(IntPtr hWnd, string? pszSubAppName, string? pszSubIdList);
 
+        // Un ComboBox tiene ventanas internas (la caja de texto y la lista que se despliega) que también dibujan el borde azul.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ComboRect { public int Left, Top, Right, Bottom; }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct ComboBoxInfo
+        {
+            public int Size;
+            public ComboRect Item;
+            public ComboRect Button;
+            public int ButtonState;
+            public IntPtr Combo;
+            public IntPtr Edit;
+            public IntPtr List;
+        }
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetComboBoxInfo(IntPtr hwndCombo, ref ComboBoxInfo info);
+
         // Registra las fuentes propias también en GDI (para el proceso, no se instalan en Windows).
         // Los controles de WinForms dibujan el texto con GDI (TextRenderer); sin esto, GDI no "ve" las
         // fuentes cargadas sólo en GDI+ y las reemplaza o las dibuja sin suavizado (se ve pixelado).
@@ -25,14 +45,41 @@ namespace Velin.UI
         private static extern int AddFontResourceEx(string lpszFilename, uint fl, IntPtr pdv);
         private const uint FR_PRIVATE = 0x10;
 
+        // El handle de la ventana de un control todavía NO existe cuando se arma un formulario (se crea recién al mostrarlo),
+        // así que no se puede aplicar el estilo "sin tema" en ese momento. Se engancha al evento HandleCreated, que además
+        // se repite cada vez que Windows recrea el control, y se aplica enseguida si el handle ya existía.
         private static void DisableVisualStyleGlow(Control c)
         {
             try
             {
-                if (!c.IsHandleCreated) c.CreateControl();
-                if (c.IsHandleCreated) SetWindowTheme(c.Handle, "", "");
+                c.HandleCreated -= OnHandleCreatedNoTheme;   // por si Apply corre más de una vez sobre el mismo control
+                c.HandleCreated += OnHandleCreatedNoTheme;
+                if (c.IsHandleCreated) NoVisualStyle(c);
             }
             catch { /* si falla, se queda con el estilo nativo nomás */ }
+        }
+
+        private static void OnHandleCreatedNoTheme(object? sender, EventArgs e)
+        {
+            if (sender is Control c) NoVisualStyle(c);
+        }
+
+        private static void NoVisualStyle(Control c)
+        {
+            try
+            {
+                SetWindowTheme(c.Handle, "", "");
+                if (c is ComboBox)
+                {
+                    var info = new ComboBoxInfo { Size = Marshal.SizeOf<ComboBoxInfo>() };
+                    if (GetComboBoxInfo(c.Handle, ref info))
+                    {
+                        if (info.Edit != IntPtr.Zero) SetWindowTheme(info.Edit, "", "");
+                        if (info.List != IntPtr.Zero) SetWindowTheme(info.List, "", "");
+                    }
+                }
+            }
+            catch { }
         }
 
         public static ThemeDefinition Current = new ThemeDefinition();
@@ -76,27 +123,52 @@ namespace Velin.UI
             try { return ColorTranslator.FromHtml(hex); } catch { return Color.Gray; }
         }
 
+        // Caché de fuentes: cada Font es un objeto de Windows, y Theme.Apply pedía una nueva por cada control de cada ventana.
+        // Se reutilizan siempre las mismas (por eso quien las recibe NO debe hacerles Dispose).
+        private static readonly Dictionary<string, Font> _fontCache = new();
+
+        private static Font Cached(string familyKey, float size, FontStyle style, Func<Font> make)
+        {
+            var key = familyKey + "|" + size.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + (int)style;
+            lock (_fontCache)
+            {
+                if (!_fontCache.TryGetValue(key, out var font)) { font = make(); _fontCache[key] = font; }
+                return font;
+            }
+        }
+
         public static Font UiFont(float size, FontStyle style = FontStyle.Regular)
         {
             if (!UseMedieval)
-                return MakeFont(CjkFamily ?? SystemFonts.DefaultFont.FontFamily, size, style);
+            {
+                var cjk = CjkFamily;
+                return Cached(cjk != null ? "cjk:" + Localization.Lang : "sys", size, style,
+                    () => MakeFont(cjk ?? SystemFonts.DefaultFont.FontFamily, size, style));
+            }
 
             // Las fuentes medievales no tienen cursiva de verdad (Windows la "inventa" y se ve dentada) y
             // pierden nitidez cuando son muy chicas. Por eso: el texto chico o en cursiva (avisos, ayudas)
             // usa Segoe UI, y el resto usa la fuente propia con un tamaño mínimo legible.
             if (size < 8.2f || (style & FontStyle.Italic) != 0)
-                return new Font("Segoe UI", size, style);
-            return new Font(BodyFamily, Math.Max(size, 9f), style);
+                return Cached("seg", size, style, () => new Font("Segoe UI", size, style));
+            var body = Math.Max(size, 9f);
+            return Cached("body", body, style, () => new Font(BodyFamily, body, style));
         }
 
         public static Font TitleFont(float size, FontStyle style = FontStyle.Regular)
-            => MakeFont(UseMedieval ? TitleFamily : (CjkFamily ?? SystemFonts.DefaultFont.FontFamily), size, style);
+        {
+            if (UseMedieval) return Cached("title", size, style, () => MakeFont(TitleFamily, size, style));
+            var cjk = CjkFamily;
+            return Cached(cjk != null ? "cjk:" + Localization.Lang : "sys", size, style,
+                () => MakeFont(cjk ?? SystemFonts.DefaultFont.FontFamily, size, style));
+        }
 
         // Fuente normal (Segoe UI) para textos chicos, ayudas y cursivas. En coreano, japonés y chino usa una fuente que tenga esos caracteres.
         public static Font PlainFont(float size, FontStyle style = FontStyle.Regular)
         {
             var cjk = CjkFamily;
-            return cjk != null ? MakeFont(cjk, size, style) : new Font("Segoe UI", size, style);
+            if (cjk != null) return Cached("cjk:" + Localization.Lang, size, style, () => MakeFont(cjk, size, style));
+            return Cached("seg", size, style, () => new Font("Segoe UI", size, style));
         }
 
         // Familia para coreano / japonés / chino (null si el idioma actual no la necesita o no hay ninguna instalada). Se resuelve una vez por idioma.
@@ -167,6 +239,8 @@ namespace Velin.UI
                             chk.BackColor = Color.Transparent;
                             chk.ForeColor = ControlText;
                             chk.Font = UiFont(chk.Font.Size, chk.Font.Style);
+                            // OJO: a las casillas NO se les quita el tema visual de Windows (SetWindowTheme): necesitan ese tema
+                            // para calcular el tamaño de su cuadradito y, sin él, WinForms tira "Visual Style handle creation operation did not succeed".
                             break;
                         case ListBox lb:
                             lb.BackColor = ControlBg;
@@ -190,16 +264,19 @@ namespace Velin.UI
                             cb.DrawMode = DrawMode.OwnerDrawFixed;
                             cb.DrawItem -= ComboBoxDrawItem;
                             cb.DrawItem += ComboBoxDrawItem;
+                            DisableVisualStyleGlow(cb);
                             break;
                         case RichTextBox rtb:
                             rtb.BackColor = InputBg;
                             rtb.ForeColor = InputText;
                             rtb.BorderStyle = BorderStyle.FixedSingle;
+                            DisableVisualStyleGlow(rtb);
                             break;
                         case TextBox tb:
                             tb.BackColor = InputBg;
                             tb.ForeColor = InputText;
                             tb.BorderStyle = BorderStyle.FixedSingle;
+                            DisableVisualStyleGlow(tb);
                             break;
                         case NumericUpDown nud:
                             nud.BackColor = InputBg;

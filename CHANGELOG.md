@@ -1,5 +1,58 @@
 # Changelog
 
+## 1.3.0
+
+Versión de calidad: menos consumo, mejor en pantallas con escala, ayuda cuando el juego falla y más control sobre skins y modpacks.
+
+### Novedades
+- **Analizador de crashes:** cuando Minecraft se cierra con error, la ventana muestra arriba las **causas probables** (hasta 4)
+  y abajo el log. Reconoce: argumento de JVM no válido, memoria que Java no pudo reservar, Java demasiado viejo (indica
+  cuál hace falta), falta de memoria, dependencias de mods que faltan (Fabric y Forge), mods duplicados, falla de la
+  placa de video (OpenGL), biblioteca nativa que no carga, disco lleno y un mod que falla al cargarse (con el mod
+  sospechoso si el log lo dice). Si no reconoce nada, lo dice en vez de adivinar.
+- **Capas:** en el gestor de skins de una cuenta Microsoft, lista de las capas de la cuenta con vista previa, para
+  equiparlas o quitarlas. Las capas no se pierden.
+- **Historial de skins:** antes de reemplazar o restaurar tu skin, la actual se guarda sola en la biblioteca (marcada con
+  ↺ y la fecha). No repite imágenes y conserva las 20 más nuevas.
+- **Actualizar modpacks de CurseForge** (instalados desde Velin 1.3.0 en adelante), con el mismo cuidado que los de
+  Modrinth: conserva mundos, opciones y mods propios, baja solo lo que cambió y aparta lo que el pack ya no trae a
+  `modpack-update-trash\`.
+- **Escalado HiDPI:** las ventanas se escalan según el DPI del monitor (125 %, 150 %...) en vez de cortar el texto; se
+  limitan para que entren en la pantalla y se reescalan al pasarlas a otro monitor. A 100 % no cambia nada.
+- **Vault:** se pueden **arrastrar archivos y carpetas hacia afuera** (Explorador, Escritorio...). Se copian, así que la
+  Vault no pierde nada, y si el destino ya tiene un archivo con ese nombre Windows pregunta si se reemplaza.
+- **Menos consumo:**
+  - Caché de fuentes (antes cada control de cada ventana creaba la suya).
+  - Al minimizar la ventana, y mientras se juega con el launcher escondido, se devuelve a Windows la memoria que no se usa.
+  - Recolector de basura sin el hilo concurrente.
+  - La mascota animada del tema Flash solo se carga con ese tema y se esconde con la ventana minimizada.
+- **Flags de Java:** los perfiles para HotSpot y GraalVM ignoran flags que una versión de Java no conozca y no escriben
+  archivos de monitoreo en disco. En **PCs justas** (2 núcleos o menos, 4 GB de RAM o menos, o una instancia con hasta
+  1,5 GB de RAM) se usa un perfil liviano: recolector serial y heap que arranca en 512 MB. Es un criterio práctico, no un
+  benchmark: se puede volver a lo mínimo apagando los flags optimizados en Configuración. OpenJ9 no cambia.
+- **Descargas:** el cliente de Minecraft se baja junto con las librerías y los assets usan 16 descargas simultáneas.
+  (Librerías, assets y modpacks ya se descargaban en paralelo.)
+- **Primer inicio:** el asistente ahora arranca en el idioma de Windows (antes siempre en inglés).
+- 18 textos nuevos traducidos a los 13 idiomas y uno actualizado.
+
+### Correcciones
+- Lo elegido en el primer inicio (por ejemplo la música apagada) se pisaba al abrir Velin por una migración vieja.
+- El recuadro azul de Windows al pasar el mouse por las listas, las cajas de texto, los desplegables y los cuadros de
+  texto enriquecido (las casillas de verificación lo conservan: necesitan el tema de Windows para dibujarse).
+- La versión mostrada en **Acerca de** y el instalador.
+- "Copiar imagen" en las capturas dejaba un `Bitmap` sin liberar.
+- El texto chico de la ventana de actualizar modpacks y el aviso de RAM de nueva instancia se veían con cuadraditos en
+  coreano, japonés y chino.
+
+### Notas
+- Actualizar un modpack de CurseForge necesita tu clave de API de CurseForge y que el modpack se haya instalado con
+  Velin 1.3.0 o posterior (antes Velin no guardaba la lista de archivos del pack).
+- El historial de skins empieza a registrar desde esta versión: Mojang no ofrece uno propio.
+- El instalador **sigue sin estar firmado**: Windows SmartScreen puede mostrar un aviso (*Más información → Ejecutar de
+  todas formas*).
+- La API de capas de Mojang y la actualización de CurseForge solo se probaron de forma limitada: si algo falla, abrí un
+  issue con el mensaje que muestra Velin.
+
 ## 1.2.0
 
 Versión de comodidad e infraestructura.

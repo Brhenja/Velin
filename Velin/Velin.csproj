@@ -8,7 +8,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Velin</AssemblyName>
     <RootNamespace>Velin</RootNamespace>
-    <Version>1.2.0</Version>
+    <Version>1.3.0</Version>
     <Authors>Brhenja</Authors>
     <Product>Velin</Product>
     <Description>Launcher de Minecraft Java liviano para Windows</Description>
@@ -19,6 +19,8 @@
     <!-- Arranque más rápido: compila a código nativo de antemano en vez de JIT-ear todo al abrir. -->
     <PublishReadyToRun>true</PublishReadyToRun>
     <TieredPGO>true</TieredPGO>
+    <!-- Sin el hilo extra del recolector de basura en segundo plano: un poco menos de memoria y de hilos. Para un launcher las pausas no se notan. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>

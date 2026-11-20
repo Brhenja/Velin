@@ -4,6 +4,7 @@ using System.Drawing.Text;
 using System.IO;
 using System.Media;
 using System.Windows.Forms;
+using Velin.Services;
 using Velin.UI;
 
 namespace Velin.Forms
@@ -19,6 +20,18 @@ namespace Velin.Forms
 
         // Se pone en true si el usuario hace click en el splash para saltearlo.
         public bool Skipped { get; private set; }
+
+        protected override void OnLoad(EventArgs e)
+        {
+            // En pantallas con más de 100 % de escala el texto crece solo: la ventana tiene que crecer con él.
+            var ratio = DeviceDpi / 96f;
+            if (ratio > 1.01f)
+            {
+                Size = new Size(DpiMath.Scale(Width, ratio), DpiMath.Scale(Height, ratio));
+                CenterToScreen();
+            }
+            base.OnLoad(e);
+        }
 
         public SplashForm()
         {
