@@ -19,7 +19,7 @@ namespace Velin.Forms
         private readonly ComboBox _sort = new() { DropDownStyle = ComboBoxStyle.DropDownList };
         private readonly ComboBox _group = new() { DropDownStyle = ComboBoxStyle.DropDownList };
         private bool _loadingGroups;
-        private readonly Button _btnAccounts = new();
+        private readonly IconButton _btnAccounts = new() { Icon = IconKind.Head };
         private readonly Button _btnCancel = new();
         private CancellationTokenSource? _launchCts;
         private Process? _launchProcess;
@@ -28,17 +28,26 @@ namespace Velin.Forms
         private int _faceToken;
         private readonly ListBox _list = new();
         private readonly ContextMenuStrip _menu = new();
+        // Estilo "legacy": botones de texto (Nueva instancia, Importar, Revisar actualizaciones, Eliminar, Información).
+        // Estilo "new": íconos (+, −, engranaje sobre la lista) y botones con ícono. Los dos comparten las mismas acciones.
+        private readonly bool _newStyle;
         private readonly Button _btnNew = new();
         private readonly Button _btnImport = new();
-        private readonly Button _btnPlay = new();
-        private readonly Button _btnMods = new();
+        private readonly IconButton _btnPlay = new() { Icon = IconKind.Play };
+        private readonly IconButton _btnMods = new() { Icon = IconKind.Puzzle };
         private readonly Button _btnCheckUpdates = new();
         private readonly Button _btnDelete = new();
-        private readonly Button _btnMore = new();
-        private readonly Button _btnOpenFolder = new();
+        private readonly IconButton _btnOpenFolder = new() { Icon = IconKind.Folder };
         private readonly Button _btnInfo = new();
-        private readonly Button _btnVault = new();
-        private readonly Button _btnSettings = new();
+        private readonly IconButton _btnVault = new() { Icon = IconKind.Chest };
+        private readonly IconButton _btnSettings = new() { Icon = IconKind.Gear };
+        // Solo en el estilo nuevo: "Mods" y "Modpacks" van como botones propios (en el clásico están dentro de "Contenido").
+        private readonly Button _btnModsList = new();
+        private readonly Button _btnModpacks = new();
+        private readonly IconButton _btnAdd = new() { Icon = IconKind.Plus };
+        private readonly IconButton _btnRemove = new() { Icon = IconKind.Minus };
+        private readonly IconButton _btnGear = new() { Icon = IconKind.Gear };
+        private readonly ToolTip _tips = new();
         private readonly VelinProgressBar _progress = new() { Visible = false };
         private readonly Label _status = new();
         private readonly PictureBox _gifCorner = new() { SizeMode = PictureBoxSizeMode.Zoom };
@@ -50,25 +59,33 @@ namespace Velin.Forms
             _autoPlay = autoPlayInstance;
             LockSize(660, 530);
             StartPosition = FormStartPosition.CenterScreen;
+            var startSettings = SettingsManager.Load();
+            _newStyle = UiStyles.IsNew(startSettings.UiStyle);
+
+            // Estilo nuevo: los botones +, − y engranaje van arriba de la lista, y el orden y el filtro bajan una fila.
+            int comboY = _newStyle ? 48 : 12;
+            int listY = _newStyle ? 78 : 42;
+            int listHeight = _newStyle ? 304 : 340;
 
             // Orden de la lista (se recuerda entre sesiones).
             _sort.Items.AddRange(new object[] { Localization.T("sort_name"), Localization.T("sort_last"), Localization.T("sort_time") });
-            var savedSort = Array.IndexOf(SortModes, SettingsManager.Load().InstanceSort);
+            var savedSort = Array.IndexOf(SortModes, startSettings.InstanceSort);
             _sort.SelectedIndex = savedSort >= 0 ? savedSort : 0;
-            _sort.SetBounds(12, 12, 146, 24);
+            _sort.SetBounds(12, comboY, 146, 24);
             _sort.SelectedIndexChanged += (s, e) => OnSortChanged();
             Content.Controls.Add(_sort);
 
             // Filtro por grupo/categoría de instancias.
-            _group.SetBounds(166, 12, 146, 24);
+            _group.SetBounds(166, comboY, 146, 24);
             _group.SelectedIndexChanged += (s, e) => OnGroupChanged();
             Content.Controls.Add(_group);
 
             // Cada instancia se muestra como una tarjeta de dos líneas: nombre + versión · loader · tiempo jugado.
             _list.ItemHeight = 38;
-            _list.SetBounds(12, 42, 300, 340);
+            _list.SetBounds(12, listY, 300, listHeight);
             _list.SelectedIndexChanged += (s, e) => UpdateButtons();
             _list.MouseDown += ListMouseDown;
+            _list.MouseDoubleClick += ListMouseDoubleClick;   // doble clic sobre una instancia = Jugar
             Content.Controls.Add(_list);
 
             _accountLabel.AutoSize = false;
@@ -82,65 +99,35 @@ namespace Velin.Forms
             _menu.Opening += (s, e) => Theme.StyleMenu(_menu);
 
             _btnNew.Text = Localization.T("btn_new_instance");
-            _btnNew.SetBounds(330, 12, 200, 32);
             _btnNew.Click += (s, e) => CreateInstance();
-            Content.Controls.Add(_btnNew);
-
             _btnImport.Text = Localization.T("btn_import");
-            _btnImport.SetBounds(536, 12, 94, 32);
             _btnImport.Click += (s, e) => ShowImportMenu();
-            Content.Controls.Add(_btnImport);
-
             _btnPlay.Text = Localization.T("btn_play");
-            _btnPlay.SetBounds(330, 52, 300, 32);
             _btnPlay.Click += async (s, e) => await PlayAsync();
-            Content.Controls.Add(_btnPlay);
-
             // Único botón de contenido: mods, modpacks, mundos, packs, shaders, servidores, capturas, backups...
             _btnMods.Text = Localization.T("btn_content");
-            _btnMods.SetBounds(330, 92, 300, 32);
             _btnMods.Click += (s, e) => OpenContent();
-            Content.Controls.Add(_btnMods);
-
+            _btnModsList.Text = Localization.T("ic_mods");
+            _btnModsList.Click += (s, e) => OpenMods();
+            _btnModpacks.Text = Localization.T("ic_modpacks");
+            _btnModpacks.Click += (s, e) => CreateFromModpack();
             _btnCheckUpdates.Text = Localization.T("btn_check_updates");
-            _btnCheckUpdates.SetBounds(330, 132, 300, 32);
             _btnCheckUpdates.Click += async (s, e) => await CheckUpdatesAsync();
-            Content.Controls.Add(_btnCheckUpdates);
-
             _btnDelete.Text = Localization.T("btn_delete");
-            _btnDelete.SetBounds(330, 172, 147, 32);
             _btnDelete.Click += async (s, e) => await DeleteInstanceAsync();
-            Content.Controls.Add(_btnDelete);
-
-            _btnMore.Text = Localization.T("btn_more");
-            _btnMore.SetBounds(483, 172, 147, 32);
-            _btnMore.Click += (s, e) => _menu.Show(_btnMore, new System.Drawing.Point(0, _btnMore.Height));
-            Content.Controls.Add(_btnMore);
-
             _btnOpenFolder.Text = Localization.T("btn_open_folder");
-            _btnOpenFolder.SetBounds(330, 212, 300, 32);
             _btnOpenFolder.Click += (s, e) => OpenInstanceFolder();
-            Content.Controls.Add(_btnOpenFolder);
-
             _btnInfo.Text = Localization.T("btn_info");
-            _btnInfo.SetBounds(330, 252, 96, 32);
             _btnInfo.Click += (s, e) => OpenInfo();
-            Content.Controls.Add(_btnInfo);
-
             _btnVault.Text = Localization.T("btn_vault");
-            _btnVault.SetBounds(432, 252, 96, 32);
             _btnVault.Click += (s, e) => OpenVault();
-            Content.Controls.Add(_btnVault);
-
             _btnSettings.Text = Localization.T("btn_settings");
-            _btnSettings.SetBounds(534, 252, 96, 32);
             _btnSettings.Click += (s, e) => OpenSettings();
-            Content.Controls.Add(_btnSettings);
-
             _btnAccounts.Text = Localization.T("btn_accounts");
-            _btnAccounts.SetBounds(330, 292, 300, 32);
             _btnAccounts.Click += (s, e) => OpenAccounts();
-            Content.Controls.Add(_btnAccounts);
+
+            if (_newStyle) BuildNewLayout();
+            else BuildLegacyLayout();
 
             // Botón Cancelar: aparece mientras se descarga/instala/carga Minecraft para iniciar.
             _btnCancel.Text = Localization.T("btn_cancel");
@@ -179,9 +166,113 @@ namespace Velin.Forms
             };
 
             Theme.Apply(this);
+            ApplyPlayFont();
         }
 
-        // Menú de acciones sobre la instancia elegida: clic derecho en la lista o botón "Más".
+        // Estilo clásico: la disposición de siempre (sin el botón "Más": sus acciones están en el clic derecho).
+        private void BuildLegacyLayout()
+        {
+            void Place(Button b, int x, int y, int w, int h)
+            {
+                b.SetBounds(x, y, w, h);
+                Content.Controls.Add(b);
+            }
+
+            Place(_btnNew, 330, 12, 200, 32);
+            Place(_btnImport, 536, 12, 94, 32);
+            Place(_btnPlay, 330, 52, 300, 32);
+            Place(_btnMods, 330, 92, 300, 32);
+            Place(_btnCheckUpdates, 330, 132, 300, 32);
+            Place(_btnDelete, 330, 172, 300, 32);
+            Place(_btnOpenFolder, 330, 212, 300, 32);
+            Place(_btnInfo, 330, 252, 96, 32);
+            Place(_btnVault, 432, 252, 96, 32);
+            Place(_btnSettings, 534, 252, 96, 32);
+            Place(_btnAccounts, 330, 292, 300, 32);
+
+            // En este estilo los botones de texto van sin ícono.
+            _btnPlay.Icon = IconKind.None;
+            _btnMods.Icon = IconKind.None;
+            _btnVault.Icon = IconKind.None;
+            _btnOpenFolder.Icon = IconKind.None;
+            _btnSettings.Icon = IconKind.None;
+            _btnAccounts.Icon = IconKind.None;
+        }
+
+        // Estilo nuevo: +, − y engranaje sobre la lista; Jugar (flecha), Mods y contenido (rompecabezas) y Vault (cofre) con ícono.
+        private void BuildNewLayout()
+        {
+            void Place(Button b, int x, int y, int w, int h)
+            {
+                b.SetBounds(x, y, w, h);
+                Content.Controls.Add(b);
+            }
+
+            // Sobre la lista: tres botones de solo ícono, con la descripción como ayuda al pasar el mouse.
+            _btnAdd.SetBounds(12, 12, 44, 30);
+            _btnAdd.Click += (s, e) => ShowNewMenu();
+            Content.Controls.Add(_btnAdd);
+            _btnRemove.SetBounds(62, 12, 44, 30);
+            _btnRemove.Click += async (s, e) => await DeleteInstanceAsync();
+            Content.Controls.Add(_btnRemove);
+            _btnGear.SetBounds(112, 12, 44, 30);
+            _btnGear.Click += (s, e) => _menu.Show(_btnGear, new System.Drawing.Point(0, _btnGear.Height));
+            Content.Controls.Add(_btnGear);
+            _tips.SetToolTip(_btnAdd, Localization.T("btn_new_instance"));
+            _tips.SetToolTip(_btnRemove, Localization.T("btn_delete"));
+            _tips.SetToolTip(_btnGear, Localization.T("tip_instance_options"));
+
+            // Mods y Modpacks son botones propios; "Contenido" (rompecabezas) trae lo demás: mundos, servidores, packs, shaders, backups...
+            Place(_btnPlay, 330, 12, 300, 48);
+            Place(_btnModsList, 330, 68, 147, 34);
+            Place(_btnModpacks, 483, 68, 147, 34);
+            Place(_btnMods, 330, 108, 300, 34);
+            Place(_btnOpenFolder, 330, 148, 300, 32);
+            Place(_btnVault, 330, 188, 80, 32);
+            Place(_btnSettings, 416, 188, 112, 32);
+            Place(_btnAccounts, 534, 188, 96, 32);
+            _tips.SetToolTip(_btnVault, Localization.T("btn_vault"));
+            _tips.SetToolTip(_btnSettings, Localization.T("btn_settings"));
+            _tips.SetToolTip(_btnAccounts, Localization.T("btn_accounts"));
+        }
+
+        // Jugar se ve más grande en el estilo nuevo (Theme.Apply le pone la fuente común, así que se repite después de aplicar el tema).
+        private void ApplyPlayFont()
+        {
+            if (_newStyle) _btnPlay.Font = Theme.UiFont(11.5f, FontStyle.Bold);
+        }
+
+        // Menú del botón +: instancia nueva, desde un modpack, o importar.
+        private void ShowNewMenu()
+        {
+            var menu = new ContextMenuStrip();
+            var create = new ToolStripMenuItem(Localization.T("btn_new_instance"));
+            create.Click += (s, e) => CreateInstance();
+            var fromModpack = new ToolStripMenuItem(Localization.T("new_from_modpack"));
+            fromModpack.Click += (s, e) => CreateFromModpack();
+            var fromFile = new ToolStripMenuItem(Localization.T("imp_menu_file"));
+            fromFile.Click += async (s, e) => await ImportAsync();
+            var fromLauncher = new ToolStripMenuItem(Localization.T("imp_menu_launcher"));
+            fromLauncher.Click += (s, e) => ImportFromLauncher();
+            menu.Items.Add(create);
+            menu.Items.Add(fromModpack);
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add(fromFile);
+            menu.Items.Add(fromLauncher);
+            menu.Closed += (s, e) => BeginInvoke(new Action(menu.Dispose));
+            Theme.StyleMenu(menu);
+            menu.Show(_btnAdd, new System.Drawing.Point(0, _btnAdd.Height));
+        }
+
+        // El navegador de modpacks no necesita una instancia: crea la suya al instalar.
+        private void CreateFromModpack()
+        {
+            using var form = new ModpackBrowserForm();
+            form.ShowDialog(this);
+            Reload();
+        }
+
+        // Menú de acciones sobre la instancia elegida: clic derecho en la lista o botón del engranaje.
         private void BuildMenu()
         {
             void Add(string key, Action action)
@@ -192,6 +283,7 @@ namespace Velin.Forms
             }
 
             Add("btn_info", OpenInfo);
+            Add("btn_open_folder", OpenInstanceFolder);
             Add("ctx_content", OpenContent);
             Add("ctx_launch_options", OpenLaunchOptions);
             Add("ctx_change_version", () => _ = ChangeVersionAsync());
@@ -204,10 +296,18 @@ namespace Velin.Forms
             Add("ctx_export", () => _ = ExportAsync());
             Add("ctx_shortcut", CreateShortcut);
             Add("ctx_update_modpack", UpdateModpack);
+            Add("btn_check_updates", () => _ = CheckUpdatesAsync());
             _menu.Items.Add(new ToolStripSeparator());
             Add("btn_delete", () => _ = DeleteInstanceAsync());
 
             _menu.Opening += (s, e) => { if (Selected == null) e.Cancel = true; };
+        }
+
+        // Doble clic sobre una instancia = Jugar (solo si Jugar está disponible: no hay otra tarea en curso).
+        private void ListMouseDoubleClick(object? sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || _list.IndexFromPoint(e.Location) < 0) return;
+            if (_btnPlay.Enabled) _ = PlayAsync();
         }
 
         private void ListMouseDown(object? sender, MouseEventArgs e)
@@ -392,8 +492,10 @@ namespace Velin.Forms
             var enabled = Selected != null;
             _btnPlay.Enabled = enabled;
             _btnMods.Enabled = true; // siempre activo: sin instancias ofrece crear una
+            _btnModsList.Enabled = true;
             _btnDelete.Enabled = enabled;
-            _btnMore.Enabled = enabled;
+            _btnRemove.Enabled = enabled;
+            _btnGear.Enabled = enabled;
             _btnCheckUpdates.Enabled = enabled;
             _btnOpenFolder.Enabled = enabled;
             _btnInfo.Enabled = enabled;
@@ -440,13 +542,17 @@ namespace Velin.Forms
         private void SetBusy(bool busy)
         {
             var hasSelection = Selected != null;
-            _btnNew.Enabled = !busy;
+            _btnNew.Enabled = !busy;   // también marca "sin tarea en curso" para los atajos de teclado
             _btnImport.Enabled = !busy;
+            _btnAdd.Enabled = !busy;
             _sort.Enabled = !busy;
             _btnPlay.Enabled = !busy && hasSelection;
             _btnMods.Enabled = !busy;
+            _btnModsList.Enabled = !busy;
+            _btnModpacks.Enabled = !busy;
             _btnDelete.Enabled = !busy && hasSelection;
-            _btnMore.Enabled = !busy && hasSelection;
+            _btnRemove.Enabled = !busy && hasSelection;
+            _btnGear.Enabled = !busy && hasSelection;
             _btnCheckUpdates.Enabled = !busy && hasSelection;
             _btnOpenFolder.Enabled = !busy && hasSelection;
             _btnInfo.Enabled = !busy && hasSelection;
@@ -475,7 +581,8 @@ namespace Velin.Forms
         }
 
         // Panel de contenido: mods, mundos, resource packs, shaders, datapacks, capturas, backups y consola.
-        private void OpenContent()
+        // La instancia sobre la que se abre Mods / Contenido; si no hay (o falta la versión) avisa y devuelve null.
+        private Instance? PickInstanceForContent()
         {
             var inst = Selected;
             if (inst == null)
@@ -484,14 +591,30 @@ namespace Velin.Forms
                 var answer = MessageBox.Show(this, Localization.T(_list.Items.Count == 0 ? "msg_no_instances_create" : "msg_select_instance"),
                     "Velin", _list.Items.Count == 0 ? MessageBoxButtons.YesNo : MessageBoxButtons.OK, MessageBoxIcon.Information);
                 if (answer == DialogResult.Yes) CreateInstance();
-                return;
+                return null;
             }
             if (inst.McVersion.Length == 0)
             {
                 MessageBox.Show(this, Localization.T("cj_need_version"), "Velin", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                return null;
             }
-            using var form = new InstanceContentForm(inst);
+            return inst;
+        }
+
+        private void OpenContent()
+        {
+            var inst = PickInstanceForContent();
+            if (inst == null) return;
+            using var form = new InstanceContentForm(inst, withModsAndModpacks: !_newStyle);
+            form.ShowDialog(this);
+            Reload();
+        }
+
+        private void OpenMods()
+        {
+            var inst = PickInstanceForContent();
+            if (inst == null) return;
+            using var form = new ModBrowserForm(inst);
             form.ShowDialog(this);
             Reload();
         }
@@ -596,15 +719,34 @@ namespace Velin.Forms
         {
             using var form = new SettingsForm();
             form.ShowDialog(this);
+            if (form.RestartRequested) { RestartVelin(); return; }
             // Si cambiaste el tema, se ve reflejado al toque sin tener que reabrir Velin.
             RefreshTheme();
+            ApplyPlayFont();
             UpdateGifVisibility();
+        }
+
+        // Cierra Velin y lo vuelve a abrir (sin argumentos: un "--jugar" de un acceso directo no debe repetirse).
+        private void RestartVelin()
+        {
+            try
+            {
+                var exe = Environment.ProcessPath;
+                if (!string.IsNullOrEmpty(exe))
+                {
+                    Process.Start(new ProcessStartInfo { FileName = exe, UseShellExecute = true });
+                    Close();
+                    return;
+                }
+            }
+            catch { /* si no se puede reabrir, se sigue con la ventana actual */ }
+            RefreshTheme();
+            ApplyPlayFont();
         }
 
         private void OpenVault()
         {
-            using var form = new VaultForm(PathService.VaultDir, Localization.T("vault_title"));
-            form.ShowDialog(this);
+            VaultForm.Open(this, PathService.VaultDir, Localization.T("vault_title"));
         }
 
         private void OpenInstanceFolder()
@@ -613,8 +755,7 @@ namespace Velin.Forms
             if (inst == null) return;
             inst.EnsureFolders();
             // Abre la interfaz propia del Vault apuntando a la carpeta raíz de la instancia.
-            using var form = new VaultForm(inst.InstanceDir, Localization.T("btn_open_folder") + " — " + inst.Name);
-            form.ShowDialog(this);
+            VaultForm.Open(this, inst.InstanceDir, Localization.T("btn_open_folder") + " — " + inst.Name);
         }
 
         // --- Jugar -----------------------------------------------------------------------------
@@ -770,7 +911,6 @@ namespace Velin.Forms
                     _status.Text = "";
                     Hide();
                 }
-                SoundManager.StopMusic();
                 // El launcher queda sin hacer nada mientras se juega: se le devuelve a Windows la memoria que no usa.
                 _ = Task.Run(async () => { await Task.Delay(4000); MemoryTrimmer.Trim(); });
                 await mcProcess.WaitForExitAsync();
@@ -782,7 +922,6 @@ namespace Velin.Forms
                 Show();
                 WindowState = FormWindowState.Normal;
                 Activate();
-                SoundManager.SetMusicEnabled(SoundManager.MusicEnabled);
             }
 
             try

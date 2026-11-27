@@ -7,13 +7,13 @@ namespace Velin.Services
         public const string Author = "Brhenja";
         public const string RepoUrl = "https://github.com/Brhenja/Velin";
 
-        // Se toma de <Version> del .csproj.
+        // Se toma de <Version> del .csproj del programa que arranca (Velin.exe), no del de esta biblioteca.
         public static string Version
         {
             get
             {
-                var v = typeof(AppInfo).Assembly.GetName().Version;
-                return v == null ? "1.3.0" : $"{v.Major}.{v.Minor}.{v.Build}";
+                var v = (System.Reflection.Assembly.GetEntryAssembly() ?? typeof(AppInfo).Assembly).GetName().Version;
+                return v == null ? "1.4.0" : $"{v.Major}.{v.Minor}.{v.Build}";
             }
         }
 

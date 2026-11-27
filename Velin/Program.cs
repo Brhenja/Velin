@@ -42,12 +42,8 @@ namespace Velin
             }
             Localization.SetLanguage(settings.Language);
             Theme.Current = ThemeManager.FindByName(settings.ThemeName);
-            SoundManager.MusicEnabled = settings.MusicEnabled;
-            SoundManager.ClickEnabled = settings.ClickSoundEnabled;
-            SoundManager.MusicVolume = Math.Clamp(settings.MusicVolume, 0, 100);
-
-            SoundManager.Init();
-            SoundManager.InstallGlobalClickSound();
+            Theme.FontOverride = FontChoices.Normalize(settings.UiFont);   // antes de crear cualquier ventana
+            SoundManager.SetClickEnabled(settings.ClickSoundEnabled);
 
             // La pantalla de inicio se puede desactivar en Configuración, o saltear con un click.
             if (settings.ShowSplash)
@@ -66,9 +62,7 @@ namespace Velin
                 splash.Close();
             }
 
-            SoundManager.StartMusic();
             Application.Run(new Velin.Forms.MainForm(ShortcutService.ParsePlayArgument(args)));
-            SoundManager.StopMusic();
         }
     }
 }

@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Pruebas automáticas de la capa de modelos y servicios (no incluye las pantallas de WinForms).
+  <!-- Pruebas automáticas del núcleo de Velin (Velin.Core: modelos y servicios; no incluye las pantallas de WinForms).
        Correr desde la raiz del proyecto con: dotnet run (parametro project) tests\ServiceTests, configuracion Release -->
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -9,11 +9,9 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../Velin/Models/*.cs" />
-    <Compile Include="../../Velin/Services/*.cs" Exclude="../../Velin/Services/SoundManager.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <ProjectReference Include="../../Velin.Core/Velin.Core.csproj" />
   </ItemGroup>
 </Project>

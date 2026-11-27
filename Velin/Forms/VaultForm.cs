@@ -35,6 +35,29 @@ namespace Velin.Forms
         private readonly Label _status = new();
         private FileSystemWatcher? _watcher;
         private readonly System.Windows.Forms.Timer _refreshDebounce;
+        // Resumen de la selección en la barra de estado (con una pausa corta para no recalcular por cada ítem al seleccionar todo).
+        private readonly System.Windows.Forms.Timer _selectionTimer;
+        private bool _statusIsSelection;
+
+        // Abre una carpeta con el gestor de archivos de Velin o, si en Configuración se eligió el Explorador de Windows, con ese.
+        public static void Open(IWin32Window owner, string dir, string title)
+        {
+            if (SettingsManager.Load().UseWindowsFileManager)
+            {
+                try
+                {
+                    Directory.CreateDirectory(dir);
+                    Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(owner, ex.Message, "Velin", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                return;
+            }
+            using var form = new VaultForm(dir, title);
+            form.ShowDialog(owner);
+        }
 
         public VaultForm(string targetDir, string title) : base(title)
         {
@@ -42,7 +65,7 @@ namespace Velin.Forms
             _currentDir = targetDir;
             Directory.CreateDirectory(_rootDir);
 
-            LockSize(560, 460);
+            LockSize(720, 500);
             StartPosition = FormStartPosition.CenterParent;
 
             _btnUp.Text = "⬆";
@@ -51,11 +74,11 @@ namespace Velin.Forms
             Content.Controls.Add(_btnUp);
 
             _path.AutoEllipsis = true;
-            _path.SetBounds(50, 12, 220, 24);
+            _path.SetBounds(50, 12, 340, 24);
             _path.TextAlign = ContentAlignment.MiddleLeft;
             Content.Controls.Add(_path);
 
-            _search.SetBounds(278, 12, 270, 24);
+            _search.SetBounds(398, 12, 310, 24);
             _search.TextChanged += (s, e) => RefreshFiles();
             Content.Controls.Add(_search);
 
@@ -63,12 +86,13 @@ namespace Velin.Forms
             _list.LargeImageList = _icons;
             _list.MultiSelect = true;
             _list.AllowDrop = true;
-            _list.SetBounds(12, 44, 536, 320);
+            _list.SetBounds(12, 44, 696, 372);
             _list.DragEnter += ListDragEnter;
             _list.DragDrop += ListDragDrop;
             _list.ItemDrag += ListItemDrag;
             _list.MouseUp += ListMouseUp;
             _list.DoubleClick += (s, e) => OpenOrEnterSelected();
+            _list.SelectedIndexChanged += (s, e) => { _selectionTimer.Stop(); _selectionTimer.Start(); };
             Content.Controls.Add(_list);
 
             BuildContextMenu();
@@ -76,26 +100,26 @@ namespace Velin.Forms
             _menu.Opening += (s, e) => Theme.StyleMenu(_menu);
 
             _btnAdd.Text = Localization.T("btn_add_file");
-            _btnAdd.SetBounds(12, 376, 110, 32);
+            _btnAdd.SetBounds(12, 426, 120, 32);
             _btnAdd.Click += (s, e) => AddFiles();
             Content.Controls.Add(_btnAdd);
 
             _btnNewFolder.Text = Localization.T("btn_new_folder");
-            _btnNewFolder.SetBounds(128, 376, 110, 32);
+            _btnNewFolder.SetBounds(138, 426, 120, 32);
             _btnNewFolder.Click += (s, e) => CreateFolder();
             Content.Controls.Add(_btnNewFolder);
 
             _btnRefresh.Text = Localization.T("btn_refresh");
-            _btnRefresh.SetBounds(244, 376, 90, 32);
+            _btnRefresh.SetBounds(264, 426, 100, 32);
             _btnRefresh.Click += (s, e) => RefreshFiles();
             Content.Controls.Add(_btnRefresh);
 
             _btnOpenFolder.Text = Localization.T("btn_open_folder");
-            _btnOpenFolder.SetBounds(340, 376, 208, 32);
+            _btnOpenFolder.SetBounds(370, 426, 338, 32);
             _btnOpenFolder.Click += (s, e) => OpenInExplorer();
             Content.Controls.Add(_btnOpenFolder);
 
-            _status.SetBounds(12, 416, 536, 20);
+            _status.SetBounds(12, 466, 696, 20);
             Content.Controls.Add(_status);
 
             // Se actualiza sola si agregás/sacás archivos de la carpeta desde afuera
@@ -104,8 +128,11 @@ namespace Velin.Forms
             _refreshDebounce = new System.Windows.Forms.Timer { Interval = 300 };
             _refreshDebounce.Tick += (s, e) => { _refreshDebounce.Stop(); SafeInvokeRefresh(); };
 
+            _selectionTimer = new System.Windows.Forms.Timer { Interval = 80 };
+            _selectionTimer.Tick += (s, e) => { _selectionTimer.Stop(); UpdateSelectionSummary(); };
+
             Load += (s, e) => NavigateTo(_rootDir);
-            FormClosed += (s, e) => { _watcher?.Dispose(); _refreshDebounce.Dispose(); };
+            FormClosed += (s, e) => { _watcher?.Dispose(); _refreshDebounce.Dispose(); _selectionTimer.Dispose(); };
 
             Theme.Apply(this);
         }
@@ -162,6 +189,8 @@ namespace Velin.Forms
             copy.Click += (s, e) => CopySelectionToClipboard(cut: false);
             var paste = new ToolStripMenuItem(Localization.T("ctx_paste"));
             paste.Click += (s, e) => PasteFromClipboard();
+            var rename = new ToolStripMenuItem(Localization.T("ctx_rename"));
+            rename.Click += (s, e) => RenameSelected();
             var copyToInstance = new ToolStripMenuItem(Localization.T("ctx_copy_to_instance"));
             copyToInstance.Click += (s, e) => CopySelectedToInstance();
             var delete = new ToolStripMenuItem(Localization.T("ctx_delete"));
@@ -174,6 +203,7 @@ namespace Velin.Forms
             _menu.Items.Add(copy);
             _menu.Items.Add(paste);
             _menu.Items.Add(new ToolStripSeparator());
+            _menu.Items.Add(rename);
             _menu.Items.Add(copyToInstance);
             _menu.Items.Add(new ToolStripSeparator());
             _menu.Items.Add(delete);
@@ -181,6 +211,7 @@ namespace Velin.Forms
             _menu.Opening += (s, e) =>
             {
                 var paths = GetSelectedPaths();
+                rename.Visible = paths.Length == 1;
                 extract.Visible = paths.Length > 0 && paths.All(p => !Directory.Exists(p) && IsArchive(p));
                 copyToInstance.Visible = paths.Length > 0 && paths.All(p => !Directory.Exists(p));
             };
@@ -222,6 +253,8 @@ namespace Velin.Forms
                 if (!string.IsNullOrEmpty(filter) && name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0) continue;
                 AddItem(filePath, name, isDirectory: false, selectedNames);
             }
+            _selectionTimer.Stop();
+            _selectionTimer.Start();
         }
 
         private void AddItem(string path, string name, bool isDirectory, System.Collections.Generic.HashSet<string> selectedNames)
@@ -300,6 +333,90 @@ namespace Velin.Forms
             catch (Exception ex) { _status.Text = ex.Message; }
         }
 
+        private void RenameSelected()
+        {
+            var paths = GetSelectedPaths();
+            if (paths.Length != 1) return;
+            var oldPath = paths[0];
+            var oldName = Path.GetFileName(oldPath);
+
+            using var dlg = new PromptDialog(Localization.T("ctx_rename").Replace("...", ""), Localization.T("prompt_rename"), oldName);
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+            var newName = dlg.Value.Trim();
+            if (newName.Length == 0 || string.Equals(newName, oldName, StringComparison.Ordinal)) return;
+            if (newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                _statusIsSelection = false;
+                _status.Text = Localization.T("err_invalid_name");
+                return;
+            }
+            try
+            {
+                var newPath = Path.Combine(Path.GetDirectoryName(oldPath)!, newName);
+                // Un cambio solo de mayúsculas/minúsculas es el mismo nombre para Windows: se permite igual.
+                bool sameNameDifferentCase = string.Equals(oldPath, newPath, StringComparison.OrdinalIgnoreCase);
+                if (!sameNameDifferentCase && (File.Exists(newPath) || Directory.Exists(newPath)))
+                    throw new IOException(newName);
+                if (Directory.Exists(oldPath)) Directory.Move(oldPath, newPath); else File.Move(oldPath, newPath);
+                RefreshFiles();
+                foreach (ListViewItem item in _list.Items)
+                    if (string.Equals(item.Text, newName, StringComparison.Ordinal)) { item.Selected = true; item.EnsureVisible(); break; }
+            }
+            catch (Exception ex)
+            {
+                _statusIsSelection = false;
+                _status.Text = ex.Message;
+            }
+        }
+
+        // "3 elementos (12,4 MB)" en la barra de estado. El tamaño suma solo los archivos (las carpetas no se recorren, para que sea instantáneo).
+        private void UpdateSelectionSummary()
+        {
+            var paths = GetSelectedPaths();
+            if (paths.Length == 0)
+            {
+                if (_statusIsSelection) { _status.Text = ""; _statusIsSelection = false; }
+                return;
+            }
+            long total = 0;
+            foreach (var p in paths)
+            {
+                try { if (!Directory.Exists(p)) total += new FileInfo(p).Length; }
+                catch { /* un archivo que desapareció no cuenta */ }
+            }
+            _status.Text = Localization.T("vault_selection", paths.Length, FormatSize(total));
+            _statusIsSelection = true;
+        }
+
+        // Atajos (solo con el foco en la lista, para no pisar la escritura en el buscador): Supr eliminar · F2 renombrar ·
+        // Ctrl+C / X / V · Ctrl+A · Retroceso subir · Enter abrir. Siempre: F5 actualizar · Ctrl+F buscar.
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            switch (keyData)
+            {
+                case Keys.F5: RefreshFiles(); return true;
+                case Keys.Control | Keys.F: _search.Focus(); _search.SelectAll(); return true;
+            }
+            if (_list.Focused)
+            {
+                switch (keyData)
+                {
+                    case Keys.Delete: DeleteSelected(); return true;
+                    case Keys.F2: RenameSelected(); return true;
+                    case Keys.Control | Keys.C: CopySelectionToClipboard(cut: false); return true;
+                    case Keys.Control | Keys.X: CopySelectionToClipboard(cut: true); return true;
+                    case Keys.Control | Keys.V: PasteFromClipboard(); return true;
+                    case Keys.Control | Keys.A:
+                        foreach (ListViewItem item in _list.Items) item.Selected = true;
+                        return true;
+                    case Keys.Back: if (_btnUp.Enabled) NavigateUp(); return true;
+                    case Keys.Enter: OpenOrEnterSelected(); return true;
+                }
+            }
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         private void OpenInExplorer()
         {
             try { Process.Start(new ProcessStartInfo { FileName = _currentDir, UseShellExecute = true }); }
@@ -353,6 +470,11 @@ namespace Velin.Forms
         {
             var paths = GetSelectedPaths();
             if (paths.Length == 0) return;
+            // Se borra de verdad (no va a la papelera), así que se pide confirmación, sobre todo ahora que Supr también elimina.
+            var question = paths.Length == 1
+                ? Localization.T("vault_confirm_delete_one", Path.GetFileName(paths[0]))
+                : Localization.T("vault_confirm_delete_many", paths.Length);
+            if (MessageBox.Show(this, question, "Velin", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             foreach (var p in paths)
             {
                 try { if (Directory.Exists(p)) Directory.Delete(p, true); else File.Delete(p); } catch { }

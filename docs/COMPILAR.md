@@ -24,7 +24,7 @@ El script:
 2. Corre las pruebas (`tests\ServiceTests`) y **aborta si alguna falla**.
 3. Publica self-contained para win-x64 en `publish\` **en un solo `Velin.exe`** (incluye .NET: el usuario no instala nada).
 4. Copia la carpeta `Assets\` completa a `publish\Assets\` y **aborta si falta algún archivo imprescindible** (fuentes,
-   ícono, música, sonidos, idiomas base y tema). Esto es a propósito: el publish en un solo archivo dejaba afuera algunos.
+   ícono, sonido de click, idiomas base y tema). Esto es a propósito: el publish en un solo archivo dejaba afuera algunos.
 5. Crea `dist\Velin-<versión>-portable-win-x64.zip` (una sola carpeta `Velin\`).
 6. Compila `installer\velin_installer.iss` con Inno Setup y deja `dist\VelinSetup-<versión>.exe`. El instalador borra las
    `.dll` sueltas de versiones anteriores.
@@ -93,12 +93,19 @@ La carpeta `Assets\` se copia sola junto al ejecutable de Debug. Dejá `.\build.
 ```
 Velin.sln
 build.ps1
-Velin/              proyecto principal (Models, Services, UI, Forms, Assets: fuentes, temas, idiomas y sonidos)
-tests/ServiceTests/ pruebas automáticas de modelos y servicios (no incluye las pantallas)
+Velin.Core/         núcleo: Models y Services (lógica sin pantallas; no usa WinForms)
+Velin/              interfaz de Windows: Forms, UI, Platform (sonido y otras piezas de Windows), Assets (fuentes, temas, idiomas y sonidos)
+tests/ServiceTests/ pruebas automáticas del núcleo (no incluye las pantallas)
 installer/          velin_installer.iss (Inno Setup)
 .github/workflows/  ci.yml y release.yml
 docs/               guías para desarrolladores
 ```
+
+## Qué va en cada proyecto
+- **`Velin.Core`** (`net8.0`): todo lo que no es una pantalla: instancias, descargas, mods, cuentas, lanzamiento del juego, importadores, etc. Los namespaces se mantienen (`Velin.Models`, `Velin.Services`). **No puede usar WinForms, `System.Drawing` ni NAudio**: una prueba lo comprueba. Lo que `internal` en el núcleo lo ven `Velin` y `ServiceTests` (`InternalsVisibleTo`).
+- **`Velin`** (`net8.0-windows`, WinForms): las ventanas (`Forms`), el tema y los dibujos (`UI`) y `Platform\`, con lo que sólo tiene sentido en Windows (`SoundManager` con NAudio, `MemoryTrimmer`, `SystemLanguage`). Sigue usando el namespace `Velin.Services` en esos archivos para no tocar el resto del código.
+- **Costuras con el sistema operativo** (para poder hacer otra interfaz, por ejemplo la de Linux): `SecretProtector.Current` define cómo se cifran los tokens de las cuentas (DPAPI en Windows; otro sistema tiene que poner su propia implementación), y `SystemInfo`, `ShortcutService` y el cifrado se comportan de forma segura fuera de Windows.
+- Si agregás una clase nueva: si no necesita una pantalla ni nada de Windows va en `Velin.Core`; si no, en `Velin`.
 
 ## Notas
 - Las pruebas crean sus datos de prueba dentro de la carpeta de salida de `tests\ServiceTests` (su propio `data\`), no en la de Velin instalado.

@@ -19,6 +19,8 @@ namespace Velin.Forms
         // General
         private readonly ComboBox _lang = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 260 };
         private readonly ComboBox _theme = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+        private readonly ComboBox _font = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+        private readonly ComboBox _uiStyle = new() { DropDownStyle = ComboBoxStyle.DropDownList };
         private readonly TextBox _username = new();
         private readonly CheckBox _splash = new();
         private readonly CheckBox _confirmDelete = new();
@@ -45,9 +47,8 @@ namespace Velin.Forms
         private readonly ComboBox _defaultSource = new() { DropDownStyle = ComboBoxStyle.DropDownList };
         private readonly TextBox _cfKey = new() { UseSystemPasswordChar = true };
         private readonly LinkLabel _cfLink = new();
+        private readonly CheckBox _winFiles = new();
         // Sonido
-        private readonly CheckBox _music = new();
-        private readonly NumericUpDown _volume = new() { Minimum = 0, Maximum = 100, Increment = 5 };
         private readonly CheckBox _click = new();
         // Red y datos
         private readonly TextBox _proxy = new();
@@ -55,6 +56,9 @@ namespace Velin.Forms
         // Acerca de
         private readonly LinkLabel _github = new();
         private readonly Button _updateBtn = new();
+
+        // Verdadero si guardó cambios que piden reiniciar (idioma, fuente, estilo) y eligió reiniciar ahora: la ventana principal se encarga.
+        public bool RestartRequested { get; private set; }
 
         private readonly ListBox _nav = new() { ItemHeight = 30 };
         private readonly List<Panel> _panels = new();
@@ -150,13 +154,35 @@ namespace Velin.Forms
             _lang.SelectedIndex = langIdx >= 0 ? langIdx : 0;
             _lang.SetBounds(0, y, 260, 24); p.Controls.Add(_lang); y += 36;
 
-            Lbl(p, Localization.T("lbl_theme"), y); y += 22;
+            // Tema (izquierda) y fuente de texto (a la derecha del tema).
+            Lbl(p, Localization.T("lbl_theme"), y);
+            Lbl(p, Localization.T("lbl_font"), y).Left = 236;
+            y += 22;
             var themes = ThemeManager.LoadAll();
             foreach (var t in themes) _theme.Items.Add(t.Name);
             var idx = themes.FindIndex(t => t.Name == s.ThemeName);
             _theme.SelectedIndex = idx >= 0 ? idx : 0;
-            _theme.SetBounds(0, y, 340, 24); p.Controls.Add(_theme); y += 28;
+            _theme.SetBounds(0, y, 220, 24); p.Controls.Add(_theme);
+
+            // Solo las fuentes seguras que estén instaladas. En coreano, japonés y chino la fuente la fija el idioma.
+            _font.Items.Add(Localization.T("font_default"));
+            if (File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "MedievalSharp.ttf"))) _font.Items.Add(FontChoices.Medieval);
+            var installed = new HashSet<string>(FontFamily.Families.Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
+            foreach (var name in FontChoices.Safe) if (installed.Contains(name)) _font.Items.Add(name);
+            var savedFont = FontChoices.Normalize(s.UiFont);
+            var fontIdx = savedFont.Length == 0 ? 0 : _font.Items.IndexOf(savedFont);
+            _font.SelectedIndex = fontIdx >= 0 ? fontIdx : 0;
+            _font.SetBounds(236, y, 220, 24);
+            _font.Enabled = LanguageCatalog.CjkFontNames(Localization.Lang).Length == 0;
+            p.Controls.Add(_font);
+            y += 28;
             Lbl(p, Localization.T("lbl_themes_hint"), y, hint: true); y += 32;
+
+            // Estilo de la ventana principal (se aplica al reiniciar).
+            Lbl(p, Localization.T("lbl_ui_style"), y); y += 22;
+            _uiStyle.Items.AddRange(new object[] { "Velin New", "Velin Legacy" });
+            _uiStyle.SelectedIndex = UiStyles.IsNew(s.UiStyle) ? 0 : 1;
+            _uiStyle.SetBounds(0, y, 220, 24); p.Controls.Add(_uiStyle); y += 36;
 
             Lbl(p, Localization.T("lbl_default_username"), y); y += 22;
             _username.Text = s.DefaultUsername;
@@ -329,16 +355,15 @@ namespace Velin.Forms
             _cfLink.LinkClicked += (a, b) => OpenUrl("https://console.curseforge.com/");
             p.Controls.Add(_cfLink);
             _links.Add(_cfLink);
+            y += 40;
+
+            Chk(p, _winFiles, Localization.T("chk_windows_file_manager"), s.UseWindowsFileManager, y, 40);
         }
 
         private void BuildSound(AppSettings s)
         {
             var p = NewPanel();
             int y = 0;
-            Chk(p, _music, Localization.T("chk_music"), s.MusicEnabled, y); y += 32;
-            Lbl(p, Localization.T("lbl_music_volume"), y); y += 22;
-            _volume.Value = Math.Clamp(s.MusicVolume, 0, 100);
-            _volume.SetBounds(0, y, 100, 24); p.Controls.Add(_volume); y += 40;
             Chk(p, _click, Localization.T("chk_click"), s.ClickSoundEnabled, y);
         }
 
@@ -429,12 +454,13 @@ namespace Velin.Forms
             // Se parte de la configuración guardada, así los ajustes que no están en esta
             // ventana (como el orden de la lista de instancias) no se pierden al guardar.
             var ns = SettingsManager.Load();
+            var oldLanguage = ns.Language;
+            var oldFont = FontChoices.Normalize(ns.UiFont);
+            var oldStyle = UiStyles.Normalize(ns.UiStyle);
             ns.Language = (_lang.SelectedItem as LanguageInfo)?.Code ?? "es";
             ns.ThemeName = _theme.SelectedItem?.ToString() ?? "Velin (medieval)";
             ns.DefaultUsername = string.IsNullOrWhiteSpace(_username.Text) ? "Player" : _username.Text.Trim();
             ns.DefaultRamMB = (int)_ram.Value;
-            ns.MusicEnabled = _music.Checked;
-            ns.MusicVolume = (int)_volume.Value;
 
             // Proxy: "host:puerto" (vacío = sin proxy).
             var proxyText = _proxy.Text.Trim();
@@ -451,6 +477,9 @@ namespace Velin.Forms
                 ns.ProxyHost = proxyText.Substring(0, cut).Trim();
                 ns.ProxyPort = proxyPort;
             }
+            ns.UiFont = _font.SelectedIndex > 0 ? FontChoices.Normalize(_font.SelectedItem?.ToString()) : "";
+            ns.UiStyle = _uiStyle.SelectedIndex == 1 ? UiStyles.Legacy : UiStyles.New;
+            ns.UseWindowsFileManager = _winFiles.Checked;
             ns.ClickSoundEnabled = _click.Checked;
             ns.ShowSplash = _splash.Checked;
             ns.ConfirmDelete = _confirmDelete.Checked;
@@ -465,14 +494,24 @@ namespace Velin.Forms
             ns.SemeruEnabled = _semeruEnabled.Checked && OptionalJavaManager.AnySemeruInstalled();
             SettingsManager.Save(ns);
 
-            // Música, volumen, sonido de click y tema se aplican al toque; sólo el idioma pide reiniciar
-            // (porque los textos de las ventanas ya están armados con el idioma anterior).
-            SoundManager.SetMusicVolume(ns.MusicVolume);
-            SoundManager.SetMusicEnabled(ns.MusicEnabled);
+            // El sonido de click y el tema se aplican al toque; el idioma, la fuente y el estilo de interfaz piden reiniciar
+            // (porque las ventanas ya están armadas con los valores anteriores).
             SoundManager.SetClickEnabled(ns.ClickSoundEnabled);
             Theme.Current = ThemeManager.FindByName(ns.ThemeName);
 
-            MessageBox.Show(this, Localization.T("settings_saved"), Localization.T("settings_title"));
+            bool needsRestart = !string.Equals(ns.Language, oldLanguage, StringComparison.Ordinal)
+                || !string.Equals(ns.UiFont, oldFont, StringComparison.Ordinal)
+                || !string.Equals(ns.UiStyle, oldStyle, StringComparison.Ordinal);
+            if (needsRestart)
+            {
+                var answer = MessageBox.Show(this, Localization.T("settings_restart_ask"), Localization.T("settings_title"),
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                RestartRequested = answer == DialogResult.Yes;
+            }
+            else
+            {
+                MessageBox.Show(this, Localization.T("settings_saved"), Localization.T("settings_title"));
+            }
             Close();
         }
 

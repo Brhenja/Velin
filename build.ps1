@@ -55,7 +55,7 @@ $assetsSrc = Join-Path $PSScriptRoot 'Velin\Assets'
 $assetsDst = Join-Path $PSScriptRoot 'publish\Assets'
 New-Item -ItemType Directory -Force -Path $assetsDst | Out-Null
 Copy-Item -Path (Join-Path $assetsSrc '*') -Destination $assetsDst -Recurse -Force
-foreach ($f in @('MedievalSharp.ttf', 'Cinzel.ttf', 'velin.ico', 'velin_bgmusic.wav', 'velin_theme.wav', 'click.wav', 'flash_mascot.gif', 'Lang\es.json', 'Lang\en.json', 'Themes\velin.json')) {
+foreach ($f in @('MedievalSharp.ttf', 'Cinzel.ttf', 'velin.ico', 'click.wav', 'flash_mascot.gif', 'Lang\es.json', 'Lang\en.json', 'Themes\velin.json')) {
     if (-not (Test-Path (Join-Path $assetsDst $f))) { Fail "Falta publish\Assets\$f" }
 }
 Write-Host ("Assets copiados a publish\: {0} archivos" -f @(Get-ChildItem $assetsDst -Recurse -File).Count) -ForegroundColor DarkGray

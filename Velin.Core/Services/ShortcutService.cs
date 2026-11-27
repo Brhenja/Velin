@@ -32,6 +32,7 @@ namespace Velin.Services
         // Crea "<carpeta>\<instancia>.lnk". Usa el objeto COM WScript.Shell que trae Windows (sin dependencias).
         public static string Create(string instanceName, string folder, string exePath, string? iconPath = null)
         {
+            if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Los accesos directos .lnk sólo existen en Windows.");
             Directory.CreateDirectory(folder);
             var lnkPath = Path.Combine(folder, SafeFileName(instanceName) + ".lnk");
 

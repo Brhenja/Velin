@@ -758,12 +758,14 @@ if (PathService.DataDir.Contains("ServiceTests", StringComparison.OrdinalIgnoreC
     var settingsFile = Path.Combine(PathService.DataDir, "settings.json");
     if (File.Exists(settingsFile)) File.Delete(settingsFile);
     var firstRun = SettingsManager.Load();
-    firstRun.MusicEnabled = false; firstRun.ClickSoundEnabled = false; firstRun.ShowSplash = false;
+    firstRun.ClickSoundEnabled = false; firstRun.ShowSplash = false;
     SettingsManager.Save(firstRun);
     var reloaded = SettingsManager.Load();
-    Check(!reloaded.MusicEnabled && !reloaded.ClickSoundEnabled && !reloaded.ShowSplash, "primer inicio: música, click y splash apagados se respetan al volver a cargar");
-    File.WriteAllText(settingsFile, "{ \"MusicEnabled\": false }");
-    Check(SettingsManager.Load().MusicEnabled, "una configuración vieja (sin la marca de migración) sigue pasando la música a activada una sola vez");
+    Check(!reloaded.ClickSoundEnabled && !reloaded.ShowSplash, "primer inicio: click y splash apagados se respetan al volver a cargar");
+    File.WriteAllText(settingsFile, "{ \"MusicEnabled\": false, \"MusicVolume\": 30, \"ShowSplash\": false, \"UiFont\": \"Verdana\", \"UseWindowsFileManager\": true }");
+    var oldSettings = SettingsManager.Load();
+    Check(!oldSettings.ShowSplash && oldSettings.UiFont == "Verdana" && oldSettings.UseWindowsFileManager, "una configuración vieja con claves de música (que ya no existen) se lee igual, y se leen la fuente y el gestor de archivos");
+    Check(new AppSettings().UiFont == "" && !new AppSettings().UseWindowsFileManager, "AppSettings: fuente predeterminada y gestor de archivos propio por defecto");
     File.Delete(settingsFile);
 }
 
@@ -858,6 +860,22 @@ v130Cf.ModpackSource = "otro";
 Check(!ModpackUpdater.CanUpdate(v130Cf), "ModpackUpdater: sólo Modrinth y CurseForge se pueden actualizar");
 try { Directory.Delete(v130Cf.InstanceDir, true); } catch { }
 
+// v1.4.0: el núcleo (Velin.Core) queda separado de la interfaz y sus costuras con el sistema se pueden cambiar
+var v140CoreRefs = typeof(AppInfo).Assembly.GetReferencedAssemblies().Select(a => a.Name ?? "").ToList();
+Check(typeof(AppInfo).Assembly.GetName().Name == "Velin.Core" && !v140CoreRefs.Any(n => n == "System.Windows.Forms" || n == "WindowsBase" || n.StartsWith("System.Drawing") || n.StartsWith("NAudio")),
+      "Velin.Core: no referencia WinForms, System.Drawing ni NAudio (la lógica sigue separada de la interfaz)");
+if (OperatingSystem.IsWindows())
+{
+    var v140Dpapi = SecretProtector.Current;
+    Check(v140Dpapi.Unprotect(v140Dpapi.Protect("token-secreto")) == "token-secreto" && v140Dpapi.Protect("") == "" && v140Dpapi.Unprotect("") == "" && v140Dpapi.Unprotect("no es base64!") == "",
+          "SecretProtector (DPAPI): ida y vuelta, vacío y datos inválidos");
+}
+var v140OriginalProtector = SecretProtector.Current;
+SecretProtector.Current = new V140ReverseProtector();
+Check(SecretProtector.Current.Protect("abc") == "cba" && SecretProtector.Current.Unprotect("cba") == "abc", "SecretProtector: se puede reemplazar por la implementación de otro sistema operativo");
+SecretProtector.Current = v140OriginalProtector;
+Check(AppInfo.Version.Split('.').Length == 3 && AppInfo.UserAgent.StartsWith("Velin/"), "AppInfo: versión X.Y.Z tomada del programa que arranca");
+
 // --- Filtros del buscador
 Check(ContentSources.ModrinthSortIndex(ContentSort.Relevance) == "relevance" && ContentSources.ModrinthSortIndex(ContentSort.Downloads) == "downloads"
       && ContentSources.ModrinthSortIndex(ContentSort.Newest) == "newest" && ContentSources.ModrinthSortIndex(ContentSort.Updated) == "updated", "ContentSources: orden de Modrinth");
@@ -925,8 +943,66 @@ Check(File.Exists(Path.Combine(v120Imp.GameDir, "saves", "Mundo", "level.dat")) 
       "Importador: copia mundos y opciones, omite mods (según opciones) y logs, y crea la instancia");
 try { Directory.Delete(v120Imp.InstanceDir, true); } catch { }
 
+// --- 1.4.0: fuente de texto y estilo de interfaz ---
+Check(FontChoices.Normalize(null) == "" && FontChoices.Normalize("") == "" && FontChoices.Normalize("   ") == "", "FontChoices.Normalize: vacío o nulo = predeterminada");
+Check(FontChoices.Normalize("segoe ui") == "Segoe UI" && FontChoices.Normalize("  Calibri ") == "Calibri" && FontChoices.Normalize("CONSOLAS") == "Consolas", "FontChoices.Normalize: acepta las seguras sin importar mayúsculas ni espacios y devuelve el nombre canónico");
+Check(FontChoices.Normalize("medieval") == "Medieval" && FontChoices.Normalize(" MEDIEVAL ") == FontChoices.Medieval, "FontChoices.Normalize: acepta la opción especial Medieval");
+Check(FontChoices.Normalize("Verdana") == "" && FontChoices.Normalize("Comic Sans MS") == "" && FontChoices.Normalize("MedievalSharp") == "", "FontChoices.Normalize: lo que no está en la lista segura se descarta");
+Check(FontChoices.Safe.Length == 7 && FontChoices.Safe.Distinct(StringComparer.OrdinalIgnoreCase).Count() == FontChoices.Safe.Length && !FontChoices.Safe.Contains("Verdana") && !FontChoices.Safe.Contains("Georgia"), "FontChoices.Safe: 7 fuentes sin repetir y sin las muy anchas");
+Check(UiStyles.Normalize(null) == "new" && UiStyles.Normalize("") == "new" && UiStyles.Normalize("otra cosa") == "new" && UiStyles.Normalize("new") == "new", "UiStyles.Normalize: lo desconocido es el estilo nuevo");
+Check(UiStyles.Normalize("legacy") == "legacy" && UiStyles.Normalize(" LEGACY ") == "legacy" && !UiStyles.IsNew("legacy") && UiStyles.IsNew("new") && UiStyles.IsNew(null), "UiStyles: legacy se reconoce sin importar mayúsculas y IsNew lo distingue");
+Check(new AppSettings().UiStyle == "new", "AppSettings: el estilo de interfaz por defecto es el nuevo");
+if (PathService.DataDir.Contains("ServiceTests", StringComparison.OrdinalIgnoreCase))   // solo en la carpeta de datos de las pruebas, nunca en la del usuario
+{
+    var v140SettingsFile = Path.Combine(PathService.DataDir, "settings.json");
+    File.WriteAllText(v140SettingsFile, "{ \"ShowSplash\": false }");
+    Check(SettingsManager.Load().UiStyle == "new", "una configuración vieja sin UiStyle se lee como estilo nuevo");
+    File.WriteAllText(v140SettingsFile, "{ \"UiStyle\": \"legacy\", \"UiFont\": \"Calibri\" }");
+    var v140Loaded = SettingsManager.Load();
+    Check(UiStyles.Normalize(v140Loaded.UiStyle) == "legacy" && FontChoices.Normalize(v140Loaded.UiFont) == "Calibri", "UiStyle y UiFont guardados se leen de vuelta");
+    File.Delete(v140SettingsFile);
+}
+
+// --- 1.4.0: lista de mods instalados (buscar / ordenar) y versión fijada ---
+Check(ModListView.Normalize(null) == "az" && ModListView.Normalize("RECENT") == "recent" && ModListView.Normalize(" oldest ") == "oldest" && ModListView.Normalize("otra") == "az" && ModListView.Modes.Length == 5, "ModListView.Normalize: modos válidos y el predeterminado es A-Z");
+Check(ModListView.Matches("", "Sodium") && ModListView.Matches(null, "Sodium") && ModListView.Matches("  ", "Sodium"), "ModListView.Matches: búsqueda vacía muestra todo");
+Check(ModListView.Matches("SODIUM", "Sodium", "sodium-fabric.jar") && ModListView.Matches("fabric sod", "Sodium", "sodium-fabric.jar") && !ModListView.Matches("lithium", "Sodium", "sodium-fabric.jar"), "ModListView.Matches: sin importar mayúsculas, con varias palabras y en nombre o archivo");
+Check(ModListView.Matches("cafe", "Café Mod") && ModListView.Matches("Café", "cafe-mod.jar"), "ModListView.Matches: ignora las tildes");
+var v141Mods = new[]
+{
+    (Name: "Sodium", Date: new DateTime(2026, 1, 10), Off: false),
+    (Name: "Lithium", Date: new DateTime(2026, 3, 5), Off: true),
+    (Name: "Iris", Date: new DateTime(2026, 2, 1), Off: false),
+    (Name: "Fabric API", Date: new DateTime(2026, 3, 5), Off: true)
+};
+string V141Order(string mode) => string.Join(",", ModListView.Sort(v141Mods, mode, m => m.Name, m => m.Date, m => m.Off).Select(m => m.Name));
+Check(V141Order("az") == "Fabric API,Iris,Lithium,Sodium", "ModListView.Sort: A-Z");
+Check(V141Order("recent") == "Fabric API,Lithium,Iris,Sodium", "ModListView.Sort: más recientes primero (empate por nombre)");
+Check(V141Order("oldest") == "Sodium,Iris,Fabric API,Lithium", "ModListView.Sort: más antiguos primero");
+Check(V141Order("enabled") == "Iris,Sodium,Fabric API,Lithium", "ModListView.Sort: activados primero");
+Check(V141Order("disabled") == "Fabric API,Lithium,Iris,Sodium", "ModListView.Sort: desactivados primero");
+Check(new AppSettings().ModsSort == "az", "AppSettings: el orden de mods por defecto es A-Z");
+{
+    var v141Inst = new Instance { Name = "PinTest", McVersion = "1.21.1", Loader = ModLoaderType.Fabric }; v141Inst.Save();
+    var v141Idx = new InstalledModsIndex();
+    v141Idx.Mods.Add(new InstalledMod { ProjectId = "A", ProjectTitle = "Fijado", VersionId = "1", Filename = "a.jar", Pinned = true });
+    v141Idx.Mods.Add(new InstalledMod { ProjectId = "B", ProjectTitle = "Normal", VersionId = "2", Filename = "b.jar" });
+    ModManager.SaveIndex(v141Inst, v141Idx);
+    var v141Back = ModManager.LoadIndex(v141Inst).Mods;
+    Check(v141Back.Count == 2 && v141Back.First(m => m.ProjectId == "A").Pinned && !v141Back.First(m => m.ProjectId == "B").Pinned, "InstalledMod.Pinned se guarda y se lee de vuelta");
+    File.WriteAllText(Path.Combine(v141Inst.InstanceDir, "mods.json"), "{ \"Mods\": [ { \"ProjectId\": \"X\", \"ProjectTitle\": \"Viejo\", \"VersionId\": \"9\", \"Filename\": \"x.jar\" } ] }");
+    Check(!ModManager.LoadIndex(v141Inst).Mods[0].Pinned, "un índice de mods viejo (sin Pinned) se lee como no fijado");
+}
+
 Console.WriteLine($"\nRESULTADO: {total - fails}/{total} pruebas OK");
 Directory.Delete(tmp, true);
 if (PathService.DataDir.Contains("ServiceTests", StringComparison.OrdinalIgnoreCase) && Directory.Exists(PathService.DataDir))
     try { Directory.Delete(PathService.DataDir, true); } catch { }
 return fails == 0 ? 0 : 1;
+
+// Implementación de mentira para probar que SecretProtector se puede cambiar.
+sealed class V140ReverseProtector : ISecretProtector
+{
+    public string Protect(string plain) => new string(plain.Reverse().ToArray());
+    public string Unprotect(string protectedB64) => new string(protectedB64.Reverse().ToArray());
+}

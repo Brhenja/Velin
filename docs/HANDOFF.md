@@ -1,13 +1,12 @@
 # Velin — estado del desarrollo (traspaso a otro chat)
 
 Launcher de Minecraft Java para Windows. C# / .NET 8 / WinForms, repo https://github.com/Brhenja/Velin (rama `main`).
-Última versión PUBLICADA: **1.2.0**. **1.3.0** está terminada y probada por el usuario (compila, las pruebas pasan): falta subirla al repo y publicarla
-a mano desde la página de Releases (ver docs/COMPILAR.md → "Publicar una release" y docs/RELEASE-1.3.0.md).
+Última versión PUBLICADA: **1.3.0**. **1.4.0** (separación de `Velin.Core` + ventana principal renovada, fuente, Vault, versiones de mods) está terminada y **compilada y probada por el usuario**; falta subirla a GitHub y publicar la release a mano (flujo en `docs/COMPILAR.md`).
 
 ## Reglas de trabajo del usuario
 - Preguntarle las dudas ANTES de tocar código. Idioma: español rioplatense. Filosofía: liviano, minimalista, sin dependencias nuevas, sin regresiones.
 - Entrega: .zip con el proyecto completo + README/CHANGELOG/notas de release actualizados + comandos de PowerShell (build.ps1, git, gh).
-- Reparto acordado: 1.2.0 comodidad e infraestructura · 1.3.0 calidad · 1.4.0 separar `Velin.Core` · 2.0 frontend Avalonia/Linux (dual boot antiX 19; apuntar a distros comunes; sin música en Linux al inicio).
+- Reparto acordado: 1.2.0 comodidad e infraestructura · 1.3.0 calidad · 1.4.0 separar `Velin.Core` · **2.0 = port a Rust con interfaz propia muy optimizada** (reemplaza al plan anterior de frontend Avalonia/Linux; en Linux harían falta el llavero del sistema para los tokens y apuntar a distros comunes).
 
 ## Estructura (Velin/Velin/)
 - `Services/` lógica pura (sin WinForms; el proyecto de pruebas `tests/ServiceTests` compila Services+Models, no UI/Forms). `Models/`, `Forms/`, `UI/` (Theme, Localization, SkinRenderer, ImageCache, ContentTextRenderer...).
@@ -58,8 +57,25 @@ cara de la skin en la ventana principal.
 - Vault: arrastrar hacia afuera (copia). Descargas: ya eran paralelas; ahora el cliente va junto con las librerías y los assets usan 16.
 - Pendientes ideas: botón "configuración mínima" (options.txt) para PCs flojas, firma del instalador (reintentar SignPath cuando el proyecto tenga más relevancia, o certificado de pago).
 
-## 1.4.0 (después)
-Separar `Velin.Core` (lógica sin WinForms) para preparar el frontend de Linux (2.0, Avalonia).
+## 1.4.0 — terminada (compilada y probada por el usuario)
+- Estructura: `Velin.Core/` (net8.0: `Models/` y `Services/`, namespaces `Velin.Models` y `Velin.Services` sin cambios), `Velin/` (net8.0-windows: `Forms/`, `UI/`, `Platform/` con SoundManager, MemoryTrimmer y SystemLanguage, que siguen en el namespace `Velin.Services`),
+  `tests/ServiceTests` (referencia al núcleo como proyecto; `InternalsVisibleTo` para `Velin` y `ServiceTests`). `Velin.sln` incluye los tres.
+- Costuras: `SecretProtector.Current` (DPAPI por defecto, `ISecretProtector`), `SystemInfo.GetMemory()` devuelve null fuera de Windows, `ShortcutService.Create` sólo Windows. `AppInfo.Version` usa el ensamblado de entrada (Velin.exe).
+- Prueba nueva que exige que `Velin.Core` no referencie WinForms, System.Drawing ni NAudio.
+- Al subirlo al repo hay que BORRAR `Velin/Models` y `Velin/Services` viejos (robocopy /E no borra): ver docs/COMPILAR.md.
+- **Extras de la 1.4.0:**
+  - Sonido: solo click (`Platform/SoundManager.cs`, mezclador de NAudio, click en memoria, hasta 16 superpuestos, dispositivo abierto solo si el click está activado). Se borraron música y splash sonoro.
+  - `AppSettings`: `UiFont`, `UseWindowsFileManager`, `UiStyle` ("new" por defecto / "legacy"). `Velin.Core/Services/FontChoices.cs` (lista segura + `Normalize`) y `UiStyles`.
+  - `UI/Theme.cs`: `FontOverride` (prioridad: fuente CJK del idioma > fuente elegida > sistema; con fuente elegida no se usa la medieval; las claves de caché llevan `ovr:`). `Program` lo fija antes de crear ventanas.
+  - `UI/Icons.cs`: `IconKind` + `Icons.Draw` (íconos vectoriales por código) e `IconButton` (lo pinta `Theme.ButtonPaintGradient`).
+  - `MainForm`: dos disposiciones (`BuildNewLayout` / `BuildLegacyLayout`) que comparten manejadores; botón "Más" eliminado (el menú `_menu` sirve para clic derecho y engranaje); doble clic = Jugar; `ShowNewMenu` (+) y `CreateFromModpack`. Aplicar idioma/fuente/estilo: `SettingsForm` pregunta "¿Reiniciar ahora?" y `MainForm.RestartVelin` reabre el exe sin argumentos.
+  - `VaultForm.Open(owner, dir, title)` decide entre el gestor propio y el Explorador (`UseWindowsFileManager`); Vault con renombrar, atajos, resumen de selección y confirmación de borrado.
+  - Claves nuevas en los 13 idiomas: `lbl_font`, `font_default`, `lbl_ui_style`, `chk_windows_file_manager`, `new_from_modpack`, `vault_selection`, `vault_confirm_delete_one/many`, `tip_instance_options`, `settings_restart_ask`, `btn_pick_version`, `pick_version_title/hint/none`, `mod_pinned`, `installed_filter_hint`, `sort_mods_az/recent/oldest/enabled/disabled`. `settings_saved` ahora dice solo "Guardado." y `btn_content` pasó a "Contenido" en todos los idiomas. Solo en español, "Configuración" → "Ajustes" (`btn_settings`, `settings_title` y los textos que la nombran). Validador de idiomas: ver sección 8 del traspaso (se recrea en Python).
+  - **Fuente "Medieval":** `FontChoices.Medieval` es un valor especial de `UiFont` (no una fuente del sistema): fuerza la fuente medieval de Velin aunque el tema no la use (`Theme.UseMedieval`); el combo la ofrece si existe `Assets/MedievalSharp.ttf`.
+  - Decisión: el estilo "legacy" y el "new" son independientes de los temas de color. Tema "Future" (marrones oscuros/negros, transparencia) queda para después; los temas que cambian toda la disposición se diseñarían en el port a Rust.
+  - **Versión final de la 1.4.0:** "Elegir versión..." en `ModBrowserForm` (+ `VersionPickerForm`; `ModManager.InstallModWithDependenciesAsync(..., chosenVersion)` instala esa versión y marca `InstalledMod.Pinned`; `CheckUpdatesAsync` salta los fijados). Buscador y orden de mods instalados (`Velin.Core/Services/ModListView.cs`, `AppSettings.ModsSort`). Botones Mods / Modpacks propios en el estilo New (`InstanceContentForm(instance, withModsAndModpacks)` los oculta ahí). Íconos `Folder` y `Head` en `UI/Icons.cs`. En español "Configuración" → "Ajustes" y `btn_content` → "Contenido" en los 13 idiomas. Claves nuevas: `btn_pick_version`, `pick_version_title/hint/none`, `mod_pinned`, `installed_filter_hint`, `sort_mods_*`.
+- Pendiente sin fecha: tema de color **"Future"** (marrones oscuros y negros, transparencia/acrílico con fallback, "para usuarios a los que no les gusta lo simple"); los temas que cambian toda la disposición se harían en el port a Rust.
+- Qué sigue: **2.0 = port a Rust con interfaz propia muy optimizada** (decisión del usuario; el usuario habló de 1.5.0 pero quedó en llamarla 2.0 por ser reescritura, con la 1.x en C# en paralelo). Antes: prototipo chico para medir RAM / tamaño / tiempo de compilación en su PC. Ideas descartadas por el usuario por ahora: soporte de Bedrock, "jugar con amigos" propio (Mojang lo agrega nativo en 26.2), pruebas con snapshots 26.x.
 
 ## Datos técnicos útiles
 - Mojang skins: GET `https://api.minecraftservices.com/minecraft/profile`, POST `.../minecraft/profile/skins` (multipart variant+file), DELETE `.../skins/active`; públicas por UUID en sessionserver (cache 30 min en `data\cache\skins`).

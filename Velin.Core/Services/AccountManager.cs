@@ -2,14 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Velin.Models;
 
-#pragma warning disable CA1416 // DPAPI es sólo de Windows (Velin es sólo para Windows)
 namespace Velin.Services
 {
     // Guarda las cuentas en data\accounts.json y arma la sesión para lanzar el juego.
@@ -114,23 +112,9 @@ namespace Velin.Services
             acc.McTokenExpiresUtc = r.McExpiresUtc;
         }
 
-        // DPAPI (CurrentUser): los tokens sólo se pueden descifrar con tu usuario de Windows.
-        private static string Protect(string plain)
-        {
-            if (string.IsNullOrEmpty(plain)) return "";
-            var data = ProtectedData.Protect(Encoding.UTF8.GetBytes(plain), null, DataProtectionScope.CurrentUser);
-            return Convert.ToBase64String(data);
-        }
+        // Los tokens se cifran con el SecretProtector actual (DPAPI en Windows: sólo tu usuario puede descifrarlos).
+        private static string Protect(string plain) => SecretProtector.Current.Protect(plain);
 
-        private static string Unprotect(string protectedB64)
-        {
-            if (string.IsNullOrEmpty(protectedB64)) return "";
-            try
-            {
-                var data = ProtectedData.Unprotect(Convert.FromBase64String(protectedB64), null, DataProtectionScope.CurrentUser);
-                return Encoding.UTF8.GetString(data);
-            }
-            catch { return ""; }
-        }
+        private static string Unprotect(string protectedB64) => SecretProtector.Current.Unprotect(protectedB64);
     }
 }

@@ -77,5 +77,7 @@ namespace Velin.Models
         public string VersionId { get; set; } = "";
         public string Filename { get; set; } = "";
         public string Sha1 { get; set; } = "";
+        // Versión elegida a mano (por ejemplo una más vieja): "Revisar actualizaciones" no la toca.
+        public bool Pinned { get; set; }
     }
 }

@@ -61,7 +61,8 @@ namespace Velin.Services
 
         // Instala un mod (de Modrinth o CurseForge) y todas sus dependencias OBLIGATORIAS que todavía no estén.
         public static async Task<ModInstallResult> InstallModWithDependenciesAsync(
-            Instance instance, ContentSource source, string projectId, string projectTitle, Action<string>? status = null)
+            Instance instance, ContentSource source, string projectId, string projectTitle, Action<string>? status = null,
+            ContentVersion? chosenVersion = null)
         {
             var result = new ModInstallResult();
 
@@ -70,12 +71,14 @@ namespace Velin.Services
             try { await IdentifyLocalModsAsync(instance, ContentSources.MrApi, status); } catch { /* sin internet o límite de la API: seguimos igual */ }
 
             var visited = new HashSet<string>();
-            await InstallRecursiveAsync(instance, source, projectId, projectTitle, null, visited, result, status, 0);
+            // Con chosenVersion se instala esa versión (por ejemplo una más vieja) y queda fijada; si no, la última compatible.
+            await InstallRecursiveAsync(instance, source, projectId, projectTitle, null, visited, result, status, 0, chosenVersion);
             return result;
         }
 
         private static async Task InstallRecursiveAsync(Instance instance, ContentSource source, string projectId, string? title,
-            string? pinnedVersionId, HashSet<string> visited, ModInstallResult result, Action<string>? status, int depth)
+            string? pinnedVersionId, HashSet<string> visited, ModInstallResult result, Action<string>? status, int depth,
+            ContentVersion? chosen = null)
         {
             if (depth > 8 || !visited.Add(ContentSources.SourceKey(source) + ":" + projectId)) return;
 
@@ -93,6 +96,10 @@ namespace Velin.Services
                     ?? throw new Exception($"No se encontró la versión pedida de {title}.");
                 version = ContentSources.FromModrinth(mv, ContentType.Mod)
                     ?? throw new Exception("Esta versión del mod no tiene archivos para descargar.");
+            }
+            else if (chosen != null)
+            {
+                version = chosen;
             }
             else
             {
@@ -139,7 +146,8 @@ namespace Velin.Services
                 ProjectTitle = title,
                 VersionId = version.Id,
                 Filename = fileName,
-                Sha1 = version.Sha1 ?? ""
+                Sha1 = version.Sha1 ?? "",
+                Pinned = chosen != null
             };
             index.Mods.Add(entry);
             SaveIndex(instance, index);
@@ -269,6 +277,7 @@ namespace Velin.Services
 
             foreach (var mod in index.Mods)
             {
+                if (mod.Pinned) continue;   // versión elegida a mano: se queda como está
                 try
                 {
                     var source = ContentSources.ParseSource(mod.Source);
@@ -321,6 +330,7 @@ namespace Velin.Services
                 index.Mods.Add(entry);
             }
             entry.VersionId = update.Latest.Id;
+            entry.Pinned = false;
             entry.Filename = fileName;
             entry.Sha1 = update.Latest.Sha1 ?? "";
             SaveIndex(instance, index);

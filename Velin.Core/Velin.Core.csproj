@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Lógica de Velin sin pantallas: modelos y servicios (instancias, descargas, mods, cuentas, lanzamiento del juego...).
+       No usa WinForms ni nada de la interfaz. Lo que depende del sistema operativo pasa por piezas chicas que se pueden
+       cambiar (ver SecretProtector), para que otra interfaz (por ejemplo la de Linux) pueda reutilizar todo esto. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Velin.Core</AssemblyName>
+    <RootNamespace>Velin</RootNamespace>
+    <Description>Nucleo de Velin: logica sin interfaz</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Cifra los tokens de las cuentas de Microsoft con DPAPI en Windows (sólo tu usuario de Windows puede leerlos). -->
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Lo que es "internal" en el núcleo lo pueden usar la interfaz de Windows y las pruebas. -->
+    <InternalsVisibleTo Include="Velin" />
+    <InternalsVisibleTo Include="ServiceTests" />
+  </ItemGroup>
+
+</Project>

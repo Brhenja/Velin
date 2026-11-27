@@ -137,14 +137,42 @@ namespace Velin.UI
             }
         }
 
+        // Fuente elegida en Configuración (ya validada con FontChoices.Normalize). "" = la predeterminada de Velin.
+        // Se fija una vez al arrancar (cambiarla en Configuración pide reiniciar).
+        public static string FontOverride { get; set; } = "";
+
+        private static string? _overrideResolvedFor;
+        private static FontFamily? _overrideFamily;
+        private static FontFamily? OverrideFamily
+        {
+            get
+            {
+                var name = FontOverride;
+                if (name.Length == 0 || name == FontChoices.Medieval) return null;   // "Medieval" no es una fuente del sistema: la maneja UseMedieval
+                if (_overrideResolvedFor != name)
+                {
+                    _overrideResolvedFor = name;
+                    _overrideFamily = null;
+                    try { _overrideFamily = new FontFamily(name); }
+                    catch (ArgumentException) { /* esa fuente no está instalada: se usa la predeterminada */ }
+                }
+                return _overrideFamily;
+            }
+        }
+
+        // Fuente "normal" (sin las medievales). Prioridad: la del idioma (coreano / japonés / chino) > la elegida en Configuración > la del sistema.
+        private static Font NonMedievalFont(float size, FontStyle style)
+        {
+            var cjk = CjkFamily;
+            if (cjk != null) return Cached("cjk:" + Localization.Lang, size, style, () => MakeFont(cjk, size, style));
+            var chosen = OverrideFamily;
+            if (chosen != null) return Cached("ovr:" + FontOverride, size, style, () => MakeFont(chosen, size, style));
+            return Cached("sys", size, style, () => MakeFont(SystemFonts.DefaultFont.FontFamily, size, style));
+        }
+
         public static Font UiFont(float size, FontStyle style = FontStyle.Regular)
         {
-            if (!UseMedieval)
-            {
-                var cjk = CjkFamily;
-                return Cached(cjk != null ? "cjk:" + Localization.Lang : "sys", size, style,
-                    () => MakeFont(cjk ?? SystemFonts.DefaultFont.FontFamily, size, style));
-            }
+            if (!UseMedieval) return NonMedievalFont(size, style);
 
             // Las fuentes medievales no tienen cursiva de verdad (Windows la "inventa" y se ve dentada) y
             // pierden nitidez cuando son muy chicas. Por eso: el texto chico o en cursiva (avisos, ayudas)
@@ -158,16 +186,16 @@ namespace Velin.UI
         public static Font TitleFont(float size, FontStyle style = FontStyle.Regular)
         {
             if (UseMedieval) return Cached("title", size, style, () => MakeFont(TitleFamily, size, style));
-            var cjk = CjkFamily;
-            return Cached(cjk != null ? "cjk:" + Localization.Lang : "sys", size, style,
-                () => MakeFont(cjk ?? SystemFonts.DefaultFont.FontFamily, size, style));
+            return NonMedievalFont(size, style);
         }
 
-        // Fuente normal (Segoe UI) para textos chicos, ayudas y cursivas. En coreano, japonés y chino usa una fuente que tenga esos caracteres.
+        // Fuente normal (Segoe UI, o la elegida en Configuración) para textos chicos, ayudas y cursivas. En coreano, japonés y chino usa una fuente que tenga esos caracteres.
         public static Font PlainFont(float size, FontStyle style = FontStyle.Regular)
         {
             var cjk = CjkFamily;
             if (cjk != null) return Cached("cjk:" + Localization.Lang, size, style, () => MakeFont(cjk, size, style));
+            var chosen = OverrideFamily;
+            if (chosen != null) return Cached("ovr:" + FontOverride, size, style, () => MakeFont(chosen, size, style));
             return Cached("seg", size, style, () => new Font("Segoe UI", size, style));
         }
 
@@ -201,7 +229,7 @@ namespace Velin.UI
         }
 
         // Las fuentes medievales sólo tienen alfabeto latino básico: en ruso, chino, japonés, coreano, turco, polaco... se usa la fuente normal.
-        private static bool UseMedieval => Current.UseMedievalFont && !Localization.UsesSystemFont;
+        private static bool UseMedieval => (Current.UseMedievalFont || FontOverride == FontChoices.Medieval) && !Localization.UsesSystemFont && OverrideFamily == null;
 
         public static void PaintBackground(Graphics g, Rectangle rect)
         {
@@ -333,8 +361,28 @@ namespace Velin.UI
             using var grad = new LinearGradientBrush(rect, top, bottom, 90f);
             e.Graphics.FillRectangle(grad, rect);
 
-            TextRenderer.DrawText(e.Graphics, b.Text, b.Font, rect, text,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            if (b is IconButton ib && ib.Icon != IconKind.None)
+            {
+                // Ícono a la izquierda del texto (o solo, centrado, si el botón no tiene texto): el conjunto va centrado.
+                int iconSize = Math.Max(12, (int)(rect.Height * 0.55));
+                bool hasText = !string.IsNullOrEmpty(b.Text);
+                int textWidth = hasText ? TextRenderer.MeasureText(e.Graphics, b.Text, b.Font).Width : 0;
+                int gap = hasText ? Math.Max(6, iconSize / 3) : 0;
+                int total = iconSize + gap + textWidth;
+                int left = rect.X + Math.Max(6, (rect.Width - total) / 2);
+                Icons.Draw(e.Graphics, ib.Icon, new Rectangle(left, rect.Y + (rect.Height - iconSize) / 2, iconSize, iconSize), text);
+                if (hasText)
+                {
+                    var textRect = new Rectangle(left + iconSize + gap, rect.Y, Math.Max(1, rect.Right - 4 - (left + iconSize + gap)), rect.Height);
+                    TextRenderer.DrawText(e.Graphics, b.Text, b.Font, textRect, text,
+                        TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                }
+            }
+            else
+            {
+                TextRenderer.DrawText(e.Graphics, b.Text, b.Font, rect, text,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
 
             using var pen = new Pen(border);
             e.Graphics.DrawRectangle(pen, 0, 0, rect.Width - 1, rect.Height - 1);

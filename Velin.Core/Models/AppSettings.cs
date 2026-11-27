@@ -6,12 +6,12 @@ namespace Velin.Models
         public string DefaultUsername { get; set; } = "Player";
         public int DefaultRamMB { get; set; } = 2048;
         public string ThemeName { get; set; } = "Velin (medieval)";
-        public bool MusicEnabled { get; set; } = true; // activada por defecto; se puede apagar en Configuración
-        // Marca que ya se aplicó el cambio "música apagada por defecto" a una configuración vieja.
-        public bool MusicOffDefaultApplied { get; set; } = false;
-        // Marca que ya se pasó UNA vez la música a "activada por defecto" en una configuración vieja
-        // (una versión de desarrollo anterior la había apagado). Después de eso se respeta lo que elijas con el interruptor.
-        public bool MusicOnDefaultApplied { get; set; } = false;
+        // Fuente de texto de la interfaz. Vacío = la predeterminada de Velin (la medieval, o la normal de Windows según el idioma).
+        public string UiFont { get; set; } = "";
+        // Estilo de la ventana principal: "new" (íconos, botones +/−/engranaje sobre la lista) o "legacy" (disposición clásica). Se aplica al reiniciar.
+        public string UiStyle { get; set; } = "new";
+        // Abrir las carpetas (instancia, mods, Vault) con el Explorador de Windows en vez del gestor de archivos propio de Velin.
+        public bool UseWindowsFileManager { get; set; } = false;
         // Proxy (opcional) para las descargas y para el juego. Vacío = sin proxy. Se aplica al reiniciar Velin.
         public string ProxyHost { get; set; } = "";
         public int ProxyPort { get; set; } = 0;
@@ -23,6 +23,8 @@ namespace Velin.Models
         public bool ShowSplash { get; set; } = true;
         // Orden de la lista de instancias: "name", "lastPlayed" o "playTime".
         public string InstanceSort { get; set; } = "name";
+        // Orden de la lista de mods instalados: az, recent, oldest, enabled, disabled.
+        public string ModsSort { get; set; } = "az";
         // Cuentas: Client ID de la app de Azure (login Microsoft) y cuenta usada por defecto.
         // API key de CurseForge del usuario (se carga en Configuración; cada usuario usa la suya).
         public string CurseForgeApiKey { get; set; } = "";
@@ -42,8 +44,6 @@ namespace Velin.Models
         public bool UseOptimizedFlags { get; set; } = true;
         // Argumentos de JVM extra que se agregan a TODAS las instancias.
         public string GlobalJvmArgs { get; set; } = "";
-        // Volumen de la música de fondo (0-100).
-        public int MusicVolume { get; set; } = 100;
         // Fuente que aparece primero en los buscadores de contenido: "modrinth" o "curseforge".
         public string DefaultContentSource { get; set; } = "modrinth";
         // --- Novedades 1.2.0 ---

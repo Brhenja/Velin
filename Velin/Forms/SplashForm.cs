@@ -2,7 +2,6 @@ using System;
 using System.Drawing;
 using System.Drawing.Text;
 using System.IO;
-using System.Media;
 using System.Windows.Forms;
 using Velin.Services;
 using Velin.UI;
@@ -16,7 +15,6 @@ namespace Velin.Forms
         private readonly PrivateFontCollection _fonts = new();
         private Font _titleFont = new Font("Segoe UI", 44f, FontStyle.Bold);
         private Font _subtitleFont = new Font("Segoe UI", 14f, FontStyle.Italic);
-        private SoundPlayer? _player;
 
         // Se pone en true si el usuario hace click en el splash para saltearlo.
         public bool Skipped { get; private set; }
@@ -46,7 +44,6 @@ namespace Velin.Forms
             Click += (s, e) => Skipped = true;
 
             LoadFonts();
-            PlayMelody();
         }
 
         private void LoadFonts()
@@ -62,20 +59,6 @@ namespace Velin.Forms
                 if (_fonts.Families.Length > 1) _subtitleFont = new Font(_fonts.Families[1], 16f, FontStyle.Regular);
             }
             catch { /* nos quedamos con las fuentes por defecto ya asignadas */ }
-        }
-
-        private void PlayMelody()
-        {
-            try
-            {
-                var wavPath = Path.Combine(AppContext.BaseDirectory, "Assets", "velin_theme.wav");
-                if (File.Exists(wavPath))
-                {
-                    _player = new SoundPlayer(wavPath);
-                    _player.Play();
-                }
-            }
-            catch { }
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -112,7 +95,6 @@ namespace Velin.Forms
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             base.OnFormClosed(e);
-            try { _player?.Stop(); _player?.Dispose(); } catch { }
             try { _fonts.Dispose(); } catch { }
         }
     }

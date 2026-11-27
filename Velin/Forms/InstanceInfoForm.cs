@@ -163,8 +163,7 @@ namespace Velin.Forms
         {
             var dir = BackupService.BackupDirFor(_instance);
             Directory.CreateDirectory(dir);
-            using var form = new VaultForm(dir, Localization.T("btn_open_backups") + " — " + _instance.Name);
-            form.ShowDialog(this);
+            VaultForm.Open(this, dir, Localization.T("btn_open_backups") + " — " + _instance.Name);
         }
 
         private void OnSave(object? sender, EventArgs e)

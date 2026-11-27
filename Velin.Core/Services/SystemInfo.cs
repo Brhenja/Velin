@@ -30,6 +30,7 @@ namespace Velin.Services
         {
             try
             {
+                if (!OperatingSystem.IsWindows()) return null;   // otros sistemas: se aviso "sin dato" (el resto del código lo tolera)
                 var status = new MEMORYSTATUSEX();
                 if (!GlobalMemoryStatusEx(status)) return null;
                 return new MemoryInfo((long)(status.ullTotalPhys / 1048576UL), (long)(status.ullAvailPhys / 1048576UL));

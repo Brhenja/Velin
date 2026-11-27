@@ -18,8 +18,13 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 > por Microsoft.** Minecraft es una marca registrada de Mojang Studios.
 
 > **Sobre cómo se hizo:** la mayor parte de este proyecto fue **"vibecodeada"**. Las ideas, el diseño y la dirección
-> son de Brhenja; el código lo escribió **Claude**, la IA de Anthropic. Los recursos (música, sonido de click, mascota
+> son de Brhenja; el código lo escribió **Claude**, la IA de Anthropic. Los recursos (sonido de click, mascota
 > del tema Flash e ícono) también los generó una IA.
+
+## Novedades de la versión 1.4.0
+
+Versión interna: no cambia nada de lo que ves. La lógica de Velin pasó a un proyecto aparte (`Velin.Core`, sin pantallas), como
+preparación para una futura versión de Linux. Detalles en [CHANGELOG.md](CHANGELOG.md).
 
 ## Novedades de la versión 1.3.0
 
@@ -38,12 +43,12 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 - **Un solo `Velin.exe`:** el programa se publica en un único ejecutable (con la carpeta `Assets\` al lado); el portable
   es una sola carpeta `Velin\` y el instalador limpia las `.dll` sueltas de versiones viejas. Cada release trae
   `SHA256SUMS.txt`.
-- **Aviso de actualización:** Velin avisa cuando hay una versión nueva (se puede desactivar en **Configuración**).
+- **Aviso de actualización:** Velin avisa cuando hay una versión nueva (se puede desactivar en **Ajustes**).
   **Descargar último .exe** baja el instalador, verifica su SHA256 y lo ejecuta; en la versión portable abre la página de
-  descarga. También hay un botón manual en **Configuración → Acerca de**.
+  descarga. También hay un botón manual en **Ajustes → Acerca de**.
 - **Acceso directo a una instancia:** en el menú de la instancia, **Crear acceso directo...** deja un `.lnk` que abre
   Velin y juega esa instancia (`Velin.exe --jugar "nombre"`).
-- **Primer inicio guiado:** idioma, tema, usuario, avisos de actualización, pantalla de inicio, música y sonido de click.
+- **Primer inicio guiado:** idioma, tema, usuario, avisos de actualización, pantalla de inicio y sonido de click.
 - **13 idiomas** y soporte para agregar los tuyos (ver abajo).
 - **Filtros en los buscadores:** orden, categoría, versión de Minecraft y loader.
 - **Actualizar modpacks de Modrinth:** conserva tus mundos, opciones y mods propios y baja solo lo que cambió.
@@ -68,9 +73,9 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
   jugando con cuentas offline.
 - **Detalles de mods y contenido:** descripción, galería de imágenes y enlaces oficiales (página, código fuente, wiki,
   issues, Discord), sin WebView ni navegador embebido (ver abajo).
-- **Configuración rehecha** en secciones (General, Juego, Java, Contenido, Sonido, Red y datos, Acerca de) con más opciones.
+- **Ajustes rehechos** en secciones (General, Juego, Java, Contenido, Sonido, Red y datos, Acerca de) con más opciones.
 - **Tema Black & White** en variante oscura y clara; los menús y botones respetan el tema.
-- **Java opcionales:** GraalVM 21 e IBM Semeru (OpenJ9), se descargan y activan desde Configuración y se eligen por instancia.
+- **Java opcionales:** GraalVM 21 e IBM Semeru (OpenJ9), se descargan y activan desde Ajustes y se eligen por instancia.
 - Correcciones de estabilidad (lista en [CHANGELOG.md](CHANGELOG.md)).
 
 ## Estado de la versión
@@ -122,16 +127,21 @@ ni muevas la carpeta `Assets\`** que está junto al `.exe`: tiene las fuentes, l
    botones para abrir el log completo, el crash report o copiar el texto.
 
 **Mods y contenido**
-- El botón **Mods y contenido** abre un panel por instancia con mods, modpacks, mundos, servidores, resource packs,
-  shaders, datapacks, capturas, backups y consola.
+- En el estilo **Velin New**, **Mods** y **Modpacks** son botones propios y **Contenido** abre un panel por instancia con
+  mundos, servidores, resource packs, shaders, datapacks, capturas, backups y consola. En **Velin Legacy**, el botón
+  **Contenido** incluye también mods y modpacks.
 - Arriba a la izquierda elegís la fuente: **Modrinth** o **CurseForge** (los datapacks son solo de Modrinth). La que
-  aparece primero se cambia en **Configuración → Contenido**.
+  aparece primero se cambia en **Ajustes → Contenido**.
 - **Detalles:** con el botón **Detalles** (o doble clic en un resultado o en un mod instalado) se abre una ventana con
   la descripción, la galería de imágenes y los enlaces oficiales del proyecto. Se dibuja con controles nativos de
   Windows: no agrega dependencias ni un navegador embebido. Las imágenes se guardan en `data\cache\img`; los `.webp`
   no los puede mostrar Windows y en ese caso se omiten.
-- Sin instancias, el botón **Mods y contenido** sigue activo y ofrece crear una.
+- Sin instancias, los botones **Mods** y **Contenido** siguen activos y ofrecen crear una.
 - Al instalar un mod se instalan sus **dependencias obligatorias**, sin duplicar lo que ya tenés.
+- **Elegir versión...** (solo mods): muestra las versiones de ese mod para la versión de Minecraft y el loader de la instancia, la
+  última y las anteriores. La que elijas queda **fijada** y *Revisar actualizaciones* no la cambia; instalar de nuevo con
+  *Instalar seleccionado* vuelve a la última.
+- La lista de **mods instalados** tiene buscador y orden (A-Z, más recientes, más antiguos, activados o desactivados primero).
 - **Revisar actualizaciones de mods** compara contra ambas fuentes y baja la versión nueva antes de borrar la vieja.
 
 **Cuentas**
@@ -147,7 +157,7 @@ ni muevas la carpeta `Assets\`** que está junto al `.exe`: tiene las fuentes, l
 
 **API key de CurseForge**
 CurseForge exige una key personal. Velin no trae ninguna: conseguí una gratis en
-[console.curseforge.com](https://console.curseforge.com) y pegala en **Configuración**. Se guarda solo en tu PC.
+[console.curseforge.com](https://console.curseforge.com) y pegala en **Ajustes**. Se guarda solo en tu PC.
 Sin key, Modrinth sigue funcionando normal.
 
 **Atajos:** `Ctrl+N` nueva instancia · `Ctrl+I` importar · `F5` recargar · `F2` renombrar · `Supr` eliminar ·
@@ -172,11 +182,11 @@ elige por defecto la estable más nueva.
 **Java y lanzamiento**
 - Java **Temurin** descargado automáticamente según la versión de Minecraft, detección de otros Java instalados
   (incluidos GraalVM y Semeru, con su proveedor en la lista) y Java propio por instancia.
-- **Java opcionales** (no vienen con Velin): en **Configuración → Java** descargás y activás **GraalVM 21** y/o
+- **Java opcionales** (no vienen con Velin): en **Ajustes → Java** descargás y activás **GraalVM 21** y/o
   **IBM Semeru (OpenJ9)** 8/17/21. Una vez activados, en **Opciones de lanzamiento** de cada instancia elegís cuál usar.
   Si el Java elegido no sirve para esa versión de Minecraft, Velin avisa y usa Temurin.
 - Flags de JVM tipo Aikar (G1) para HotSpot y GraalVM, y flags propios para OpenJ9 (`gencon` + caché de clases
-  compartida); se pueden apagar y agregar argumentos globales en **Configuración → Juego**. RAM fija por instancia
+  compartida); se pueden apagar y agregar argumentos globales en **Ajustes → Juego**. RAM fija por instancia
   (con aviso si no alcanza).
 - Opciones por instancia: ventana o pantalla completa, entrar directo a un servidor o mundo, argumentos extra.
 - Descargas verificadas (SHA1 y tamaño, reintentos, sin dejar archivos a medias).
@@ -191,13 +201,17 @@ elige por defecto la estable más nueva.
 - **Servidores:** lista con estado en vivo y entrada directa.
 - **Capturas de pantalla** con miniaturas.
 - **Vault:** explorador de archivos propio con subcarpetas, arrastrar y soltar, cortar/copiar/pegar y extracción de
-  `.zip`, `.7z` y `.rar`, y arrastrar archivos hacia afuera (se copian); más un Vault de mods por instancia.
+  `.zip`, `.7z` y `.rar`, arrastrar archivos hacia afuera (se copian), renombrar (F2), atajos de teclado y resumen de la selección;
+  más un Vault de mods por instancia. Si preferís el Explorador de Windows, se puede elegir en Ajustes → Contenido.
 
 **Interfaz**
 - Ventana propia sin bordes de Windows, temas JSON (Velin medieval, Flash y **Black & White** oscuro y claro),
   13 idiomas (ver abajo).
-- Música de fondo (con interruptor y volumen) y sonido de click, splash opcional y salteable.
-- **Configuración** por secciones: idioma, tema, usuario, confirmaciones, RAM, flags y argumentos de JVM globales,
+- Dos estilos de ventana principal: **Velin New** (botones +, − y engranaje sobre la lista, íconos en Jugar, Contenido, Abrir carpeta, Vault, Ajustes y Cuentas; Mods y Modpacks como botones propios)
+  y **Velin Legacy** (la disposición clásica). Doble clic sobre una instancia = Jugar.
+- **Fuente de texto** a elección (lista corta de fuentes seguras). Idioma, fuente y estilo se aplican al reiniciar (Velin pregunta).
+- Sonido de click (se puede repetir muchas veces seguidas), splash opcional y salteable.
+- **Ajustes** por secciones: idioma, tema, usuario, confirmaciones, RAM, flags y argumentos de JVM globales,
   Java opcionales, fuente de contenido y API key, sonido, proxy, carpeta de datos y limpieza de caché.
 - Proxy opcional (lo usa también el juego).
 
@@ -205,18 +219,18 @@ elige por defecto la estable más nueva.
 
 Velin viene en **español, inglés, portugués (Brasil), ruso, alemán, francés, italiano, chino simplificado, japonés,
 turco, polaco, ucraniano y coreano**. Al primer inicio se elige el idioma del sistema o el que prefieras, y se cambia en
-**Configuración** (pide reiniciar).
+**Ajustes** (pide reiniciar).
 
 Los idiomas son archivos JSON (`Assets\Lang\<código>.json`). Para **agregar o corregir uno**, copiá `es.json` o `en.json`
 a `data\lang\<código>.json`, traducí los valores (conservando `{0}`, `{1}` y `\n`) y poné en `"lang.name"` el nombre del
-idioma en ese idioma. Aparece solo en la lista de **Configuración**. Las claves que falten se muestran en inglés. Si
+idioma en ese idioma. Aparece solo en la lista de **Ajustes**. Las claves que falten se muestran en inglés. Si
 tu traducción puede servirle a otros, mandala como pull request.
 
 ## Temas personalizados
 
 Los temas son archivos `.json`. Los de fábrica (Velin, Flash, Black & White oscuro y claro) están en `Assets\Themes\`. Para crear el tuyo, copiá uno, cambiale
 nombre y colores (códigos hex) y guardalo en `data\themes\` (la carpeta se crea sola la primera vez que abrís Velin).
-Aparece en **Configuración → Tema visual**, y el tema **se cambia sin reiniciar** (el idioma, en cambio, sí pide
+Aparece en **Ajustes → Tema visual**, y el tema **se cambia sin reiniciar** (el idioma, en cambio, sí pide
 reiniciar).
 
 ```json
