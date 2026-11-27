@@ -23,8 +23,20 @@ modpacks, resource packs and shaders on **Modrinth** and **CurseForge** from the
 
 ## What's new in 1.4.0
 
-An internal release: nothing you see changes. Velin's logic moved to a separate project (`Velin.Core`, with no UI), as groundwork
-for a future Linux version. Details in [CHANGELOG.md](CHANGELOG.md) (in Spanish).
+- **Refreshed main window with two styles** (Settings → General): **Velin New** (default), with **+ / − / gear** buttons above the
+  instance list and icon buttons (Play, Content, Open folder, Vault, Settings, Accounts), and **Velin Legacy**, the classic layout.
+  **Mods** and **Modpacks** are now their own buttons, and "Mods and content" is now just **Content**.
+  Double-click an instance to **play**.
+- **Choose an older version of a mod:** the **Choose version...** button lists the mod's versions for the instance's Minecraft
+  version. The one you pick is **pinned** and *Check mod updates* leaves it alone.
+- **Installed mods with search and sort:** A-Z, newest, oldest, enabled or disabled first.
+- **Text font choice** in Settings (including Velin's **Medieval** font) and an option to **use Windows Explorer** instead of
+  Velin's own file manager.
+- **Better Vault:** bigger window, rename (F2), keyboard shortcuts and a selection summary.
+- **Simpler sound:** background music removed; the click stays.
+- Language, font and style changes apply on restart (Velin asks whether to restart now).
+- Under the hood, Velin's logic moved to a separate project (`Velin.Core`, with no UI), as groundwork for future versions.
+  Details in [CHANGELOG.md](CHANGELOG.md) (in Spanish).
 
 ## What's new in 1.3.0
 

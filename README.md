@@ -23,8 +23,20 @@ shaders en **Modrinth** y **CurseForge** desde la misma interfaz.
 
 ## Novedades de la versión 1.4.0
 
-Versión interna: no cambia nada de lo que ves. La lógica de Velin pasó a un proyecto aparte (`Velin.Core`, sin pantallas), como
-preparación para una futura versión de Linux. Detalles en [CHANGELOG.md](CHANGELOG.md).
+- **Ventana principal renovada, con dos estilos** (Ajustes → General): **Velin New** (por defecto), con botones **+ / − / engranaje**
+  sobre la lista de instancias y botones con ícono (Jugar, Contenido, Abrir carpeta, Vault, Ajustes, Cuentas), y **Velin Legacy**,
+  la disposición de siempre. **Mods** y **Modpacks** ahora son botones propios, y "Mods y contenido" pasó a llamarse **Contenido**.
+  Doble clic sobre una instancia = **Jugar**.
+- **Elegir una versión más vieja de un mod:** el botón **Elegir versión...** muestra las versiones del mod para la versión de
+  Minecraft de la instancia. La que elijas queda **fijada** y *Revisar actualizaciones* no la cambia.
+- **Mods instalados con buscador y orden:** A-Z, más recientes, más antiguos, activados o desactivados primero.
+- **Fuente de texto a elección** en Ajustes (incluida la **Medieval** de Velin) y opción para **usar el Explorador de Windows**
+  en vez del gestor de archivos de Velin.
+- **Vault mejorada:** ventana más grande, renombrar (F2), atajos de teclado y resumen de la selección.
+- **Sonido simplificado:** se sacó la música de fondo; queda el click.
+- Cambios de idioma, fuente y estilo se aplican al reiniciar (Velin pregunta si querés reiniciar ahora).
+- Por dentro, la lógica de Velin pasó a un proyecto aparte (`Velin.Core`, sin pantallas), como preparación para futuras versiones.
+  Detalles en [CHANGELOG.md](CHANGELOG.md).
 
 ## Novedades de la versión 1.3.0
 
